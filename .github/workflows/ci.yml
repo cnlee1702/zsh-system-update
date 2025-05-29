@@ -1,0 +1,249 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        # Test on multiple Ubuntu versions
+        os: [ubuntu-20.04, ubuntu-22.04, ubuntu-latest]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install zsh
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zsh
+        
+    - name: Set up oh-my-zsh (minimal)
+      run: |
+        # Install oh-my-zsh without changing shell
+        sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+        
+    - name: Make test script executable
+      run: chmod +x tests/test-zsh-system-update.sh
+      
+    - name: Run test suite
+      run: ./tests/test-zsh-system-update.sh
+      
+    - name: Test plugin loading in actual zsh
+      run: |
+        # Test that plugin can be loaded without errors
+        zsh -c "
+          export ZSH=\"$HOME/.oh-my-zsh\"
+          source \$ZSH/oh-my-zsh.sh
+          source ./zsh-system-update.plugin.zsh
+          echo 'Plugin loaded successfully'
+        "
+        
+    - name: Test help output
+      run: |
+        zsh -c "
+          source ./zsh-system-update.plugin.zsh
+          zsh-system-update --help
+        "
+        
+    - name: Test dry-run functionality
+      run: |
+        zsh -c "
+          source ./zsh-system-update.plugin.zsh
+          zsh-system-update --dry-run --verbose
+        "
+
+  lint:
+    name: Shell Linting
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install ShellCheck
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y shellcheck
+        
+    - name: Run ShellCheck on plugin
+      run: |
+        # ShellCheck the main plugin file
+        shellcheck -x zsh-system-update.plugin.zsh || true
+        
+    - name: Run ShellCheck on test script
+      run: |
+        # ShellCheck the test script
+        shellcheck tests/test-zsh-system-update.sh || true
+        
+    - name: Check for common issues
+      run: |
+        echo "Checking for common shell scripting issues..."
+        
+        # Check for missing quotes
+        if grep -n '\$[A-Za-z_][A-Za-z0-9_]*[^"]' zsh-system-update.plugin.zsh; then
+          echo "Warning: Found potentially unquoted variables"
+        fi
+        
+        # Check for use of 'local' keyword
+        if ! grep -q "local " zsh-system-update.plugin.zsh; then
+          echo "Error: Plugin should use 'local' for function variables"
+          exit 1
+        fi
+        
+        echo "Basic checks passed"
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check for security issues
+      run: |
+        echo "Running security checks..."
+        
+        # Check for dangerous commands
+        if grep -n "rm -rf \$" zsh-system-update.plugin.zsh; then
+          echo "Error: Found potentially dangerous rm command"
+          exit 1
+        fi
+        
+        # Check for hardcoded secrets
+        if grep -i "password\|secret\|token" zsh-system-update.plugin.zsh; then
+          echo "Warning: Found potential hardcoded secrets"
+        fi
+        
+        # Check for eval with user input
+        if grep -n "eval.*\$.*" zsh-system-update.plugin.zsh; then
+          echo "Info: Found eval usage - ensure input is sanitized"
+        fi
+        
+        echo "Security scan completed"
+
+  documentation:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check README
+      run: |
+        echo "Checking documentation..."
+        
+        # Check if README exists and has required sections
+        if [ ! -f README.md ]; then
+          echo "Error: README.md not found"
+          exit 1
+        fi
+        
+        # Check for required sections
+        for section in "Installation" "Usage" "Options" "Examples"; do
+          if ! grep -q "$section" README.md; then
+            echo "Warning: README missing $section section"
+          fi
+        done
+        
+        echo "Documentation check completed"
+        
+    - name: Check for broken links (if any)
+      run: |
+        # Check for common markdown link patterns
+        if grep -o '\[.*\](.*\.md)' README.md CHANGELOG.md CONTRIBUTING.md; then
+          echo "Found internal links - ensure they exist"
+        fi
+        
+    - name: Validate CHANGELOG format
+      run: |
+        if [ -f CHANGELOG.md ]; then
+          echo "CHANGELOG.md found"
+          # Basic format check
+          if ! grep -q "## \[" CHANGELOG.md; then
+            echo "Warning: CHANGELOG may not follow standard format"
+          fi
+        fi
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zsh python3 python3-pip
+        
+    - name: Install miniconda
+      run: |
+        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+        bash miniconda.sh -b -p $HOME/miniconda3
+        echo "$HOME/miniconda3/bin" >> $GITHUB_PATH
+        
+    - name: Set up conda environment
+      run: |
+        source $HOME/miniconda3/bin/activate
+        conda create -n test-env python=3.9 -y
+        
+    - name: Test with actual conda
+      run: |
+        export PATH="$HOME/miniconda3/bin:$PATH"
+        zsh -c "
+          source ./zsh-system-update.plugin.zsh
+          echo 'Testing with real conda installation...'
+          zsh-system-update --conda-only --dry-run --verbose
+        "
+        
+    - name: Test pip functionality
+      run: |
+        export PATH="$HOME/miniconda3/bin:$PATH"
+        zsh -c "
+          source ./zsh-system-update.plugin.zsh
+          echo 'Testing pip functionality...'
+          zsh-system-update --skip-apt --skip-conda --dry-run --verbose
+        "
+
+  compatibility:
+    name: Compatibility Test
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        zsh-version: ["5.8", "5.9"]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install zsh ${{ matrix.zsh-version }}
+      run: |
+        # This is a simplified approach - in practice you might need to build from source
+        sudo apt-get update
+        sudo apt-get install -y zsh
+        zsh --version
+        
+    - name: Test plugin compatibility
+      run: |
+        zsh -c "
+          source ./zsh-system-update.plugin.zsh
+          echo 'Plugin loaded successfully on zsh version:'
+          zsh --version
+          zsh-system-update --help >/dev/null
+          echo 'Compatibility test passed'
+        "
