@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-06-25
+
+### Added
+- **Flatpak/Flathub support** - Complete integration for Flatpak application updates
+  - Smart caching system with 2-hour threshold (same as Conda)
+  - Repository updates with `flatpak update --appstream`
+  - Application updates with `flatpak update --assumeyes`
+  - Automatic cleanup of unused runtimes with `flatpak uninstall --unused`
+  - Graceful handling when Flatpak is not installed
+- **New command-line options for Flatpak**
+  - `--flatpak-only` - Update only Flatpak applications
+  - `--skip-flatpak` - Skip Flatpak updates in combined runs
+  - `--force-flatpak` - Force Flatpak update regardless of cache timing
+- **Enhanced help system**
+  - Reorganized help output with clear package manager sections
+  - Added caching information for all supported package managers
+  - Updated examples to demonstrate Flatpak usage
+- **Expanded tab completion**
+  - All new Flatpak options included in zsh completion
+  - Improved completion descriptions and organization
+- **Updated test suite**
+  - Added comprehensive Flatpak functionality tests
+  - Enhanced selective update testing for all 4 package managers
+  - Updated tab completion validation
+
+### Changed
+- **Improved help organization** - Grouped options by category (Package Managers, Cache Control)
+- **Enhanced --force flag** - Now includes Flatpak when forcing all updates
+- **Updated version display** - Shows current version with --version flag
+- **Refined command-line parsing** - Better error messages for unknown options
+
+### Technical Details
+- Now supports 4 major package managers: APT, Conda, pip, and Flatpak
+- Consistent caching patterns across all package managers
+- Maintains backward compatibility with all existing options
+- Flatpak integration follows same patterns as existing package managers
+
 ## [0.1.0] - 2025-05-29
 
 ### Added
@@ -50,5 +87,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implements proper argument parsing with validation
 - Follows oh-my-zsh plugin conventions and structure
 
-[Unreleased]: https://github.com/yourusername/zsh-system-update/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/yourusername/zsh-system-update/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/yourusername/zsh-system-update/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/yourusername/zsh-system-update/releases/tag/v0.1.0
