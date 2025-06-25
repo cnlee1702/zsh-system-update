@@ -40,6 +40,48 @@ zsh-system-update() {
         print -P "%F{blue}[INFO]%f $1"
     }
 
+    # Function to update Flatpak applications
+    local update_flatpak_packages() {
+        # Check if flatpak is installed
+        if ! command -v flatpak >/dev/null 2>&1; then
+            print_status "WARNING" "Flatpak not found, skipping Flatpak updates"
+            return 0
+        fi
+        
+        # Check cache unless forced
+        local cache_file="$HOME/.cache/zsh-system-update/flatpak_last_update"
+        local cache_hours=2
+        
+        if [[ "$force_flatpak" != true ]] && check_cache "$cache_file" $cache_hours; then
+            print_status "INFO" "Flatpak applications updated recently (within ${cache_hours}h), skipping"
+            return 0
+        fi
+        
+        print_status "INFO" "Starting Flatpak updates..."
+        
+        # Update repositories
+        print_status "INFO" "Updating Flatpak repositories"
+        execute_command "flatpak update --appstream"
+        
+        # Check for updates
+        local updates_available
+        if updates_available=$(flatpak remote-ls --updates 2>/dev/null) && [[ -n "$updates_available" ]]; then
+            print_status "INFO" "Updating Flatpak applications"
+            execute_command "flatpak update --assumeyes"
+        else
+            print_status "INFO" "No Flatpak applications to update"
+        fi
+        
+        # Clean up unused runtimes
+        print_status "INFO" "Cleaning unused Flatpak runtimes"
+        execute_command "flatpak uninstall --unused --assumeyes"
+        
+        # Update cache timestamp
+        update_cache "$cache_file"
+        
+        print_status "SUCCESS" "Flatpak updates completed"
+    }
+
     local print_success() {
         print -P "%F{green}[SUCCESS]%f $1"
     }
@@ -408,6 +450,7 @@ EOF
                     # Use absolute path for conda to avoid recursion
                     local conda_cmd="/home/cli/miniconda3/bin/conda"
                     run_cmd "$conda_cmd run -n $env_name python -m pip install --upgrade pip" "Upgrading pip in $env_name"
+                    ((env_count++))
                 fi
             done
             
