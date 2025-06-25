@@ -482,6 +482,7 @@ EOF
         
         # Run updates
         update_apt
+        update_flatpak_packages
         update_conda  
         update_pip
         
