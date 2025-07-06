@@ -104,11 +104,13 @@ setup_test_env() {
     # Set up minimal zsh environment
     export SHELL="/bin/zsh"
     
-    # Create fake directories for testing
+    # Create fake directories and files for testing
     mkdir -p "$HOME/.oh-my-zsh/custom/plugins/zsh-system-update"
     mkdir -p "$HOME/miniconda3/envs/test-env/bin"
     mkdir -p "$HOME/miniconda3/bin"
     mkdir -p "$HOME/.conda"
+    mkdir -p "$HOME/.cache/flatpak"
+    mkdir -p "$HOME/.local/bin"
     
     # Create fake conda binary for testing
     cat > "$HOME/miniconda3/bin/conda" << 'EOF'
@@ -134,6 +136,39 @@ case "$1" in
 esac
 EOF
     chmod +x "$HOME/miniconda3/bin/conda"
+    
+    # Create fake flatpak binary for testing
+    cat > "$HOME/.local/bin/flatpak" << 'EOF'
+#!/bin/bash
+case "$1" in
+    "update")
+        if [[ "$2" == "--appstream" ]]; then
+            echo "Updating appstream data for remote flathub"
+        elif [[ "$2" == "--assumeyes" ]]; then
+            echo "Looking for updates..."
+            echo "Nothing to do."
+        fi
+        ;;
+    "remote-ls")
+        if [[ "$2" == "--updates" ]]; then
+            # Return empty to simulate no updates available
+            echo ""
+        fi
+        ;;
+    "uninstall")
+        if [[ "$2" == "--unused" && "$3" == "--assumeyes" ]]; then
+            echo "Nothing unused to uninstall"
+        fi
+        ;;
+    *)
+        echo "flatpak $*"
+        ;;
+esac
+EOF
+    chmod +x "$HOME/.local/bin/flatpak"
+    
+    # Add local bin to PATH for tests
+    export PATH="$HOME/.local/bin:$PATH"
     
     # Create fake pip in test environment
     cat > "$HOME/miniconda3/envs/test-env/bin/pip" << 'EOF'
@@ -286,10 +321,46 @@ test_help_functionality() {
 test_argument_parsing() {
     print_test_header "Argument Parsing Tests"
     
-    assert_success "Accepts --quiet flag" "zsh -c 'source \"$PLUGIN_FILE\"; zsh-system-update --quiet --dry-run' 2>/dev/null"
-    assert_success "Accepts --verbose flag" "zsh -c 'source \"$PLUGIN_FILE\"; zsh-system-update --verbose --dry-run' 2>/dev/null"
-    assert_success "Accepts --dry-run flag" "zsh -c 'source \"$PLUGIN_FILE\"; zsh-system-update --dry-run' 2>/dev/null"
-    assert_failure "Rejects invalid flag" "zsh -c 'source \"$PLUGIN_FILE\"; zsh-system-update --invalid-flag' 2>/dev/null"
+    # Test individual flags
+    print_test "Accepts --quiet flag"
+    ((TESTS_RUN++))
+    if zsh -c "source '$PLUGIN_FILE'; zsh-system-update --quiet --dry-run" >/dev/null 2>&1; then
+        echo -e "${GREEN}✓ PASS${NC}: Accepts --quiet flag"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Accepts --quiet flag"
+        ((TESTS_FAILED++))
+    fi
+    
+    print_test "Accepts --verbose flag"
+    ((TESTS_RUN++))
+    if zsh -c "source '$PLUGIN_FILE'; zsh-system-update --verbose --dry-run" >/dev/null 2>&1; then
+        echo -e "${GREEN}✓ PASS${NC}: Accepts --verbose flag"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Accepts --verbose flag"
+        ((TESTS_FAILED++))
+    fi
+    
+    print_test "Accepts --flatpak-only flag"
+    ((TESTS_RUN++))
+    if zsh -c "source '$PLUGIN_FILE'; zsh-system-update --flatpak-only --dry-run" >/dev/null 2>&1; then
+        echo -e "${GREEN}✓ PASS${NC}: Accepts --flatpak-only flag"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Accepts --flatpak-only flag"
+        ((TESTS_FAILED++))
+    fi
+    
+    print_test "Rejects invalid flag"
+    ((TESTS_RUN++))
+    if ! zsh -c "source '$PLUGIN_FILE'; zsh-system-update --invalid-flag" >/dev/null 2>&1; then
+        echo -e "${GREEN}✓ PASS${NC}: Rejects invalid flag"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Rejects invalid flag"
+        ((TESTS_FAILED++))
+    fi
 }
 
 # Test dry-run functionality
@@ -312,7 +383,57 @@ test_selective_updates() {
     assert_contains "Skip-pip works" "zsh -c 'source \"$PLUGIN_FILE\"; zsh-system-update --skip-pip --dry-run'" "Skipping pip"
 }
 
-# Test caching functionality
+# Test Flatpak functionality specifically
+test_flatpak_functionality() {
+    print_test_header "Flatpak Functionality Tests"
+    
+    # Test Flatpak detection
+    print_test "Detects Flatpak availability"
+    ((TESTS_RUN++))
+    local output
+    output=$(zsh -c "source '$PLUGIN_FILE'; zsh-system-update --flatpak-only --dry-run" 2>&1)
+    if echo "$output" | grep -q "Starting Flatpak updates"; then
+        echo -e "${GREEN}✓ PASS${NC}: Detects Flatpak availability"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Detects Flatpak availability"
+        echo "  Output: $output"
+        ((TESTS_FAILED++))
+    fi
+    
+    # Test Flatpak dry-run commands
+    print_test "Flatpak dry-run shows expected commands"
+    ((TESTS_RUN++))
+    output=$(zsh -c "source '$PLUGIN_FILE'; zsh-system-update --flatpak-only --dry-run --verbose" 2>&1)
+    if echo "$output" | grep -q "DRY RUN: flatpak update --appstream" && echo "$output" | grep -q "DRY RUN: flatpak update --assumeyes"; then
+        echo -e "${GREEN}✓ PASS${NC}: Flatpak dry-run shows expected commands"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Flatpak dry-run shows expected commands"
+        echo "  Expected: flatpak update commands in dry-run output"
+        echo "  Output: $output"
+        ((TESTS_FAILED++))
+    fi
+    
+    # Test Flatpak handles missing installation gracefully
+    print_test "Handles missing Flatpak gracefully"
+    ((TESTS_RUN++))
+    # Temporarily hide flatpak for this test
+    local old_path="$PATH"
+    export PATH="/bin:/usr/bin"
+    output=$(zsh -c "source '$PLUGIN_FILE'; zsh-system-update --flatpak-only --dry-run" 2>&1)
+    export PATH="$old_path"
+    
+    if echo "$output" | grep -q "Flatpak not found"; then
+        echo -e "${GREEN}✓ PASS${NC}: Handles missing Flatpak gracefully"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Handles missing Flatpak gracefully"
+        echo "  Expected: 'Flatpak not found' message"
+        echo "  Output: $output"
+        ((TESTS_FAILED++))
+    fi
+}
 test_caching_logic() {
     print_test_header "Caching Logic Tests"
     

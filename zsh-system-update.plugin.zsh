@@ -7,28 +7,19 @@
 # Add plugin directory to fpath for completion discovery
 fpath+="${0:A:h}"
 
-# Debug function to check what's happening
-debug_zsh_system_update() {
-    echo "Plugin loaded at: ${0:A:h}"
-    echo "Functions defined:"
-    typeset -f | grep "zsh-system-update"
-    echo "Aliases:"
-    alias | grep -i update
-    echo "Conda function exists:"
-    typeset -f conda | head -5
-}
-
-# Main system update function - single definition
+# Main system update function
 zsh-system-update() {
     # Local variables to avoid global namespace pollution
     local QUIET=false
     local SKIP_APT=false
     local SKIP_CONDA=false
     local SKIP_PIP=false
+    local SKIP_FLATPAK=false
     local VERBOSE=false
     local DRY_RUN=false
     local FORCE_APT_UPDATE=false
     local FORCE_CONDA_UPDATE=false
+    local FORCE_FLATPAK_UPDATE=false
 
     # Colors for output - ensure they're loaded first
     if [[ -z "$fg" ]]; then
@@ -38,48 +29,6 @@ zsh-system-update() {
     # Helper functions with explicit color handling
     local print_status() {
         print -P "%F{blue}[INFO]%f $1"
-    }
-
-    # Function to update Flatpak applications
-    local update_flatpak_packages() {
-        # Check if flatpak is installed
-        if ! command -v flatpak >/dev/null 2>&1; then
-            print_status "WARNING" "Flatpak not found, skipping Flatpak updates"
-            return 0
-        fi
-        
-        # Check cache unless forced
-        local cache_file="$HOME/.cache/zsh-system-update/flatpak_last_update"
-        local cache_hours=2
-        
-        if [[ "$force_flatpak" != true ]] && check_cache "$cache_file" $cache_hours; then
-            print_status "INFO" "Flatpak applications updated recently (within ${cache_hours}h), skipping"
-            return 0
-        fi
-        
-        print_status "INFO" "Starting Flatpak updates..."
-        
-        # Update repositories
-        print_status "INFO" "Updating Flatpak repositories"
-        execute_command "flatpak update --appstream"
-        
-        # Check for updates
-        local updates_available
-        if updates_available=$(flatpak remote-ls --updates 2>/dev/null) && [[ -n "$updates_available" ]]; then
-            print_status "INFO" "Updating Flatpak applications"
-            execute_command "flatpak update --assumeyes"
-        else
-            print_status "INFO" "No Flatpak applications to update"
-        fi
-        
-        # Clean up unused runtimes
-        print_status "INFO" "Cleaning unused Flatpak runtimes"
-        execute_command "flatpak uninstall --unused --assumeyes"
-        
-        # Update cache timestamp
-        update_cache "$cache_file"
-        
-        print_status "SUCCESS" "Flatpak updates completed"
     }
 
     local print_success() {
@@ -156,10 +105,13 @@ OPTIONS:
     --skip-apt          Skip APT system updates
     --skip-conda        Skip Conda updates
     --skip-pip          Skip pip updates
+    --skip-flatpak      Skip Flatpak updates
     --apt-only          Only run APT updates
     --conda-only        Only run Conda/pip updates
+    --flatpak-only      Only run Flatpak updates
     --force-apt-update  Force apt update even if recently updated
     --force-conda-update Force conda update even if recently updated
+    --force-flatpak-update Force flatpak update even if recently updated
 
 EXAMPLES:
     zsh-system-update                    # Full system update
@@ -203,13 +155,25 @@ EOF
                     SKIP_PIP=true
                     shift
                     ;;
+                --skip-flatpak)
+                    SKIP_FLATPAK=true
+                    shift
+                    ;;
                 --apt-only)
                     SKIP_CONDA=true
                     SKIP_PIP=true
+                    SKIP_FLATPAK=true
                     shift
                     ;;
                 --conda-only)
                     SKIP_APT=true
+                    SKIP_FLATPAK=true
+                    shift
+                    ;;
+                --flatpak-only)
+                    SKIP_APT=true
+                    SKIP_CONDA=true
+                    SKIP_PIP=true
                     shift
                     ;;
                 --force-apt-update)
@@ -218,6 +182,10 @@ EOF
                     ;;
                 --force-conda-update)
                     FORCE_CONDA_UPDATE=true
+                    shift
+                    ;;
+                --force-flatpak-update)
+                    FORCE_FLATPAK_UPDATE=true
                     shift
                     ;;
                 *)
@@ -450,7 +418,6 @@ EOF
                     # Use absolute path for conda to avoid recursion
                     local conda_cmd="/home/cli/miniconda3/bin/conda"
                     run_cmd "$conda_cmd run -n $env_name python -m pip install --upgrade pip" "Upgrading pip in $env_name"
-                    ((env_count++))
                 fi
             done
             
@@ -463,6 +430,110 @@ EOF
         run_cmd "python -m pip cache purge" "Cleaning pip cache"
         
         print_success "Pip updates completed"
+    }
+
+    # Flatpak update function
+    local update_flatpak() {
+        if [[ "$SKIP_FLATPAK" == true ]]; then
+            print_status "Skipping Flatpak updates"
+            return 0
+        fi
+        
+        # Check if flatpak is installed
+        if ! command -v flatpak >/dev/null 2>&1; then
+            print_warning "Flatpak not found, skipping Flatpak updates"
+            return 0
+        fi
+        
+        # Check cache unless forced (similar to conda cache check)
+        local cache_threshold=7200  # 2 hours in seconds
+        local current_time=$(date +%s)
+        local cache_file="$HOME/.cache/flatpak"
+        
+        if [[ "$FORCE_FLATPAK_UPDATE" != true ]]; then
+            if [[ -d "$cache_file" ]]; then
+                local latest_timestamp=$(stat -c %Y "$cache_file" 2>/dev/null || echo 0)
+                local time_diff=$((current_time - latest_timestamp))
+                
+                if [[ $time_diff -lt $cache_threshold ]]; then
+                    if [[ "$VERBOSE" == true ]]; then
+                        print_status "Flatpak updated recently ($((time_diff / 60)) minutes ago), skipping"
+                    else
+                        print_status "Flatpak applications are recent, skipping update"
+                    fi
+                    return 0
+                fi
+            fi
+        fi
+        
+        print_status "Starting Flatpak updates..."
+        
+        # Update repositories
+        if [[ "$VERBOSE" == true ]]; then
+            print_status "Updating Flatpak repositories"
+        fi
+        
+        if [[ "$DRY_RUN" == true ]]; then
+            echo "DRY RUN: flatpak update --appstream"
+        else
+            if [[ "$QUIET" == true ]]; then
+                flatpak update --appstream >/dev/null 2>&1
+            else
+                flatpak update --appstream
+            fi
+        fi
+        
+        # Check for updates and update applications
+        local updates_available=false
+        if [[ "$DRY_RUN" != true ]]; then
+            if flatpak remote-ls --updates 2>/dev/null | grep -q .; then
+                updates_available=true
+            fi
+        else
+            # In dry-run mode, assume updates might be available
+            updates_available=true
+        fi
+        
+        if [[ "$updates_available" == true ]]; then
+            if [[ "$VERBOSE" == true ]]; then
+                print_status "Updating Flatpak applications"
+            fi
+            
+            if [[ "$DRY_RUN" == true ]]; then
+                echo "DRY RUN: flatpak update --assumeyes"
+            else
+                if [[ "$QUIET" == true ]]; then
+                    flatpak update --assumeyes >/dev/null 2>&1
+                else
+                    flatpak update --assumeyes
+                fi
+            fi
+        else
+            print_status "No Flatpak applications to update"
+        fi
+        
+        # Clean up unused runtimes
+        if [[ "$VERBOSE" == true ]]; then
+            print_status "Cleaning unused Flatpak runtimes"
+        fi
+        
+        if [[ "$DRY_RUN" == true ]]; then
+            echo "DRY RUN: flatpak uninstall --unused --assumeyes"
+        else
+            if [[ "$QUIET" == true ]]; then
+                flatpak uninstall --unused --assumeyes >/dev/null 2>&1
+            else
+                flatpak uninstall --unused --assumeyes
+            fi
+        fi
+        
+        # Update cache timestamp (only if not dry-run)
+        if [[ "$DRY_RUN" != true ]]; then
+            mkdir -p "$(dirname "$cache_file")" 2>/dev/null
+            touch "$cache_file" 2>/dev/null
+        fi
+        
+        print_success "Flatpak updates completed"
     }
 
     # Main execution logic
@@ -482,9 +553,9 @@ EOF
         
         # Run updates
         update_apt
-        update_flatpak_packages
         update_conda  
         update_pip
+        update_flatpak
         
         local end_time=$(date +%s)
         local duration=$((end_time - start_time))
@@ -522,10 +593,13 @@ _zsh_system_update() {
         '--skip-apt[Skip APT system updates]' \
         '--skip-conda[Skip Conda updates]' \
         '--skip-pip[Skip pip updates]' \
+        '--skip-flatpak[Skip Flatpak updates]' \
         '--apt-only[Only run APT updates]' \
         '--conda-only[Only run Conda/pip updates]' \
+        '--flatpak-only[Only run Flatpak updates]' \
         '--force-apt-update[Force apt update even if recently updated]' \
-        '--force-conda-update[Force conda update even if recently updated]'
+        '--force-conda-update[Force conda update even if recently updated]' \
+        '--force-flatpak-update[Force flatpak update even if recently updated]'
 }
 
 # Register the completion function
