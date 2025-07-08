@@ -17,7 +17,6 @@ NC='\033[0m' # No Color
 TESTS_RUN=0
 TESTS_PASSED=0
 TESTS_FAILED=0
-SKIPPED_TESTS=()
 
 # Test helper functions
 print_test_header() {
