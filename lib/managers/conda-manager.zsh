@@ -270,3 +270,7 @@ zsu_update_conda() {
     return 0
 
 }
+
+export CONDA_CMD
+export CONDA_BASE
+export CONDA_ENVS_DIR

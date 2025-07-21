@@ -26,7 +26,7 @@ zsu_import "lib/utils/output.zsh"
 # zsu_import "lib/utils/cache.zsh"
 zsu_import "lib/managers/apt-manager.zsh"
 zsu_import "lib/managers/conda-manager.zsh"
-# zsu_import "lib/managers/pip-manager.zsh"
+zsu_import "lib/managers/pip-manager.zsh"
 zsu_import "lib/managers/flatpak-manager.zsh"
 
 # Main system update function
@@ -203,47 +203,6 @@ EOF
         return 0
     }
 
-    # Pip update function
-    local update_pip() {
-        if [[ "$SKIP_PIP" == true ]]; then
-            zsu_print_status "Skipping pip updates"
-            return 0
-        fi
-        
-        zsu_print_status "Starting pip updates..."
-        
-        # Update pip in base environment
-        run_cmd "python -m pip install --upgrade pip" "Upgrading pip in base environment"
-        
-        # Find and update pip in conda environments
-        local env_count=0
-        
-        if [[ -n "$CONDA_ENVS_DIR" && -d "$CONDA_ENVS_DIR" ]]; then
-            for env_path in "$CONDA_ENVS_DIR"/*; do
-                if [[ -d "$env_path" && -f "$env_path/bin/pip" ]]; then
-                    local env_name=$(basename "$env_path")
-                    ((env_count++))
-                    
-                    if [[ "$VERBOSE" == true ]]; then
-                        zsu_print_status "Updating pip in environment: $env_name"
-                    fi
-                    
-                    # Use the detected conda command
-                    run_cmd "$CONDA_CMD run -n $env_name python -m pip install --upgrade pip" "Upgrading pip in $env_name"
-                fi
-            done
-            
-            zsu_print_status "Updated pip in $env_count conda environments"
-        else
-            zsu_print_warning "No conda environments directory found"
-        fi
-        
-        # Clean pip cache once at the end
-        run_cmd "python -m pip cache purge" "Cleaning pip cache"
-        
-        zsu_print_success "Pip updates completed"
-    }
-
     # Main execution logic
     local main() {
         local start_time=$(date +%s)
@@ -266,7 +225,7 @@ EOF
         zsu_update_apt $VERBOSE $SKIP_APT $QUIET $FORCE_APT_UPDATE
         zsu_update_flatpak $VERBOSE $SKIP_FLATPAK $QUIET $FORCE_FLATPAK_UPDATE $DRY_RUN
         zsu_update_conda $VERBOSE $SKIP_CONDA $QUIET $FORCE_CONDA_UPDATE
-        update_pip
+        zsu_update_pip $VERBOSE $SKIP_PIP $QUIET $DRY_RUN
         
         local end_time=$(date +%s)
         local duration=$((end_time - start_time))
