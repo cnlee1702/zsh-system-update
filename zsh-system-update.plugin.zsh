@@ -23,7 +23,7 @@ zsu_import() {
 # Import required modules
 zsu_import "lib/utils/output.zsh"
 # zsu_import "lib/utils/cache.zsh"
-# zsu_import "lib/managers/apt-manager.zsh"
+zsu_import "lib/managers/apt-manager.zsh"
 # zsu_import "lib/managers/conda-manager.zsh"
 # zsu_import "lib/managers/pip-manager.zsh"
 # zsu_import "lib/managers/flatpak-manager.zsh"
@@ -698,7 +698,7 @@ EOF
         fi
         
         # Run updates
-        update_apt
+        zsu_update_apt $VERBOSE $SKIP_APT $QUIET $FORCE_APT_UPDATE
         update_conda  
         update_pip
         update_flatpak
