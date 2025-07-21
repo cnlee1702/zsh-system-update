@@ -9,15 +9,16 @@ fpath+="${0:A:h}"
 
 zsu_import() {
     local module="$1"
-    local plugin_dir="${0:A:h}"
+    local plugin_dir="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-system-update"
     local module_path="${plugin_dir}/${module}"
 
     if [[ -f "$module_path" ]]; then
         source "$module_path"
+        return 0
     else
         print "ERROR: Cannot load module: $module" >&2
         return 1
-        fi
+    fi
 }
 
 # Import required modules
