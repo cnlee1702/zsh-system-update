@@ -7,6 +7,27 @@
 # Add plugin directory to fpath for completion discovery
 fpath+="${0:A:h}"
 
+zsu_import() {
+    local module="$1"
+    local plugin_dir="${0:A:h}"
+    local module_path="${plugin_dir}/${module}"
+
+    if [[ -f "$module_path" ]]; then
+        source "$module_path"
+    else
+        print "ERROR: Cannot load module: $module" >&2
+        return 1
+        fi
+}
+
+# Import required modules
+zsu_import "lib/utils/output.zsh"
+# zsu_import "lib/utils/cache.zsh"
+# zsu_import "lib/managers/apt-manager.zsh"
+# zsu_import "lib/managers/conda-manager.zsh"
+# zsu_import "lib/managers/pip-manager.zsh"
+# zsu_import "lib/managers/flatpak-manager.zsh"
+
 # Main system update function
 zsh-system-update() {
     # Local variables to avoid global namespace pollution
@@ -26,28 +47,6 @@ zsh-system-update() {
     local CONDA_BASE=""
     local CONDA_ENVS_DIR=""
 
-    # Colors for output - ensure they're loaded first
-    if [[ -z "$fg" ]]; then
-        autoload -U colors && colors
-    fi
-    
-    # Helper functions with explicit color handling
-    local print_status() {
-        print -P "%F{blue}[INFO]%f $1"
-    }
-
-    local print_success() {
-        print -P "%F{green}[SUCCESS]%f $1"
-    }
-
-    local print_warning() {
-        print -P "%F{yellow}[WARNING]%f $1"
-    }
-
-    local print_error() {
-        print -P "%F{red}[ERROR]%f $1"
-    }
-
     # Dynamic conda detection function
     local detect_conda_installation() {
         local conda_cmd=""
@@ -62,12 +61,12 @@ zsh-system-update() {
                 # It's a real executable
                 conda_cmd=$(command -v conda)
                 if [[ "$VERBOSE" == true ]]; then
-                    print_status "Found conda executable: $conda_cmd"
+                    zsu_print_status "Found conda executable: $conda_cmd"
                 fi
             elif [[ "$conda_type" == "function" || "$conda_type" == "alias" ]]; then
                 # Conda is a function/alias, try to find the real conda binary
                 if [[ "$VERBOSE" == true ]]; then
-                    print_status "Conda is a $conda_type, searching for actual binary..."
+                    zsu_print_status "Conda is a $conda_type, searching for actual binary..."
                 fi
                 
                 # Try to find conda binary in common locations within PATH
@@ -76,7 +75,7 @@ zsh-system-update() {
                     if [[ -x "$path_dir/conda" ]]; then
                         conda_cmd="$path_dir/conda"
                         if [[ "$VERBOSE" == true ]]; then
-                            print_status "Found conda binary in PATH: $conda_cmd"
+                            zsu_print_status "Found conda binary in PATH: $conda_cmd"
                         fi
                         break
                     fi
@@ -90,7 +89,7 @@ zsh-system-update() {
                 if [[ -d "$potential_base/conda-meta" ]]; then
                     conda_base="$potential_base"
                     if [[ "$VERBOSE" == true ]]; then
-                        print_status "Derived conda base from PATH executable: $conda_base"
+                        zsu_print_status "Derived conda base from PATH executable: $conda_base"
                     fi
                 fi
             fi
@@ -114,7 +113,7 @@ zsh-system-update() {
                     conda_cmd="$location/bin/conda"
                     conda_base="$location"
                     if [[ "$VERBOSE" == true ]]; then
-                        print_status "Found conda installation: $location"
+                        zsu_print_status "Found conda installation: $location"
                     fi
                     break
                 fi
@@ -126,7 +125,7 @@ zsh-system-update() {
             conda_cmd="$CONDA_PREFIX/bin/conda"
             conda_base="$CONDA_PREFIX"
             if [[ "$VERBOSE" == true ]]; then
-                print_status "Found conda via CONDA_PREFIX: $CONDA_PREFIX"
+                zsu_print_status "Found conda via CONDA_PREFIX: $CONDA_PREFIX"
             fi
         fi
         
@@ -134,7 +133,7 @@ zsh-system-update() {
         if [[ -z "$conda_cmd" && -n "$CONDA_EXE" && -x "$CONDA_EXE" ]]; then
             conda_cmd="$CONDA_EXE"
             if [[ "$VERBOSE" == true ]]; then
-                print_status "Found conda via CONDA_EXE: $CONDA_EXE"
+                zsu_print_status "Found conda via CONDA_EXE: $CONDA_EXE"
             fi
             
             # Try to derive base from CONDA_EXE
@@ -143,7 +142,7 @@ zsh-system-update() {
             if [[ -d "$potential_base/conda-meta" ]]; then
                 conda_base="$potential_base"
                 if [[ "$VERBOSE" == true ]]; then
-                    print_status "Derived conda base from CONDA_EXE: $conda_base"
+                    zsu_print_status "Derived conda base from CONDA_EXE: $conda_base"
                 fi
             fi
         fi
@@ -160,21 +159,21 @@ zsh-system-update() {
         
         if [[ -n "$conda_cmd" ]]; then
             if [[ "$VERBOSE" == true ]]; then
-                print_status "Conda detection successful:"
-                print_status "  Command: $CONDA_CMD"
-                print_status "  Base: $CONDA_BASE"
-                print_status "  Envs: $CONDA_ENVS_DIR"
+                zsu_print_status "Conda detection successful:"
+                zsu_print_status "  Command: $CONDA_CMD"
+                zsu_print_status "  Base: $CONDA_BASE"
+                zsu_print_status "  Envs: $CONDA_ENVS_DIR"
                 
                 # Show version if we have a real executable
                 if [[ "$CONDA_CMD" != "conda" ]]; then
                     local conda_version=$($CONDA_CMD --version 2>/dev/null || echo "unknown")
-                    print_status "  Version: $conda_version"
+                    zsu_print_status "  Version: $conda_version"
                 fi
             fi
             return 0
         else
             if [[ "$VERBOSE" == true ]]; then
-                print_warning "No conda installation detected - skipping conda operations"
+                zsu_print_warning "No conda installation detected - skipping conda operations"
             fi
             return 1
         fi
@@ -197,9 +196,9 @@ zsh-system-update() {
         done
         
         if [[ ${#missing_commands[@]} -gt 0 ]]; then
-            print_error "Missing required commands: ${missing_commands[*]}"
-            print_error "Please ensure your PATH includes standard system directories"
-            print_error "Current PATH: $PATH"
+            zsu_print_error "Missing required commands: ${missing_commands[*]}"
+            zsu_print_error "Please ensure your PATH includes standard system directories"
+            zsu_print_error "Current PATH: $PATH"
             return 1
         fi
     }
@@ -210,9 +209,9 @@ zsh-system-update() {
         local description="$2"
         
         if [[ "$VERBOSE" == true ]]; then
-            print_status "Running: $cmd"
+            zsu_print_status "Running: $cmd"
         elif [[ -n "$description" ]]; then
-            print_status "$description"
+            zsu_print_status "$description"
         fi
         
         if [[ "$DRY_RUN" == true ]]; then
@@ -331,7 +330,7 @@ EOF
                     shift
                     ;;
                 *)
-                    print_error "Unknown option: $1"
+                    zsu_print_error "Unknown option: $1"
                     show_help
                     return 1
                     ;;
@@ -400,12 +399,12 @@ EOF
         
         if [[ $time_diff -gt $update_threshold ]]; then
             if [[ "$VERBOSE" == true ]]; then
-                print_status "Last conda activity was $((time_diff / 60)) minutes ago, updating..."
+                zsu_print_status "Last conda activity was $((time_diff / 60)) minutes ago, updating..."
             fi
             return 0  # Update needed
         else
             if [[ "$VERBOSE" == true ]]; then
-                print_status "Conda data is recent ($((time_diff / 60)) minutes old), checking if conda itself needs update"
+                zsu_print_status "Conda data is recent ($((time_diff / 60)) minutes old), checking if conda itself needs update"
             fi
             return 1  # Update not needed
         fi
@@ -435,12 +434,12 @@ EOF
         
         if [[ $time_diff -gt $update_threshold ]]; then
             if [[ "$VERBOSE" == true ]]; then
-                print_status "Last apt update was $((time_diff / 60)) minutes ago, updating..."
+                zsu_print_status "Last apt update was $((time_diff / 60)) minutes ago, updating..."
             fi
             return 0  # Update needed
         else
             if [[ "$VERBOSE" == true ]]; then
-                print_status "Apt lists are recent ($((time_diff / 60)) minutes old), skipping update"
+                zsu_print_status "Apt lists are recent ($((time_diff / 60)) minutes old), skipping update"
             fi
             return 1  # Update not needed
         fi
@@ -449,17 +448,17 @@ EOF
     # APT update functions
     local update_apt() {
         if [[ "$SKIP_APT" == true ]]; then
-            print_status "Skipping APT updates"
+            zsu_print_status "Skipping APT updates"
             return 0
         fi
         
         # Check if apt is available (for non-Debian systems)
         if ! command -v apt-get >/dev/null 2>&1; then
-            print_warning "APT not found, skipping APT updates"
+            zsu_print_warning "APT not found, skipping APT updates"
             return 0
         fi
         
-        print_status "Starting APT updates..."
+        zsu_print_status "Starting APT updates..."
         
         local apt_quiet=""
         local apt_config=""
@@ -475,41 +474,41 @@ EOF
         if [[ "$FORCE_APT_UPDATE" == true ]] || apt_update_needed; then
             run_cmd "sudo apt-get update $apt_quiet" "Updating package lists"
         else
-            print_status "Package lists are recent, skipping update"
+            zsu_print_status "Package lists are recent, skipping update"
         fi
         
         # Check if upgrades are available using apt-get (more script-friendly)
         if apt list --upgradable 2>/dev/null | grep -q "upgradable" 2>/dev/null; then
             run_cmd "sudo apt-get upgrade --yes --no-install-recommends $apt_config" "Upgrading packages"
         else
-            print_status "No packages to upgrade"
+            zsu_print_status "No packages to upgrade"
         fi
         
         run_cmd "sudo apt-get autoremove --yes --purge" "Removing unnecessary packages"
         run_cmd "sudo apt-get autoclean" "Cleaning package cache"
         
-        print_success "APT updates completed"
+        zsu_print_success "APT updates completed"
     }
 
     # Conda update function
     local update_conda() {
         if [[ "$SKIP_CONDA" == true ]]; then
-            print_status "Skipping Conda updates"
+            zsu_print_status "Skipping Conda updates"
             return 0
         fi
         
         # Use dynamic conda detection
         if [[ -z "$CONDA_CMD" ]]; then
-            print_warning "Conda not found, skipping conda updates"
+            zsu_print_warning "Conda not found, skipping conda updates"
             return 0
         fi
         
-        print_status "Starting Conda updates..."
+        zsu_print_status "Starting Conda updates..."
         
         # Debug: Show conda info
         if [[ "$VERBOSE" == true ]]; then
-            print_status "Using conda at: $CONDA_CMD"
-            print_status "Conda version: $($CONDA_CMD --version 2>/dev/null || echo 'unknown')"
+            zsu_print_status "Using conda at: $CONDA_CMD"
+            zsu_print_status "Conda version: $($CONDA_CMD --version 2>/dev/null || echo 'unknown')"
         fi
         
         # Only update conda if needed (unless forced)
@@ -529,20 +528,20 @@ EOF
             
             run_cmd "$CONDA_CMD clean --all --yes" "Cleaning conda cache"
         else
-            print_status "Conda is recently updated, skipping conda update"
+            zsu_print_status "Conda is recently updated, skipping conda update"
         fi
         
-        print_success "Conda updates completed"
+        zsu_print_success "Conda updates completed"
     }
 
     # Pip update function
     local update_pip() {
         if [[ "$SKIP_PIP" == true ]]; then
-            print_status "Skipping pip updates"
+            zsu_print_status "Skipping pip updates"
             return 0
         fi
         
-        print_status "Starting pip updates..."
+        zsu_print_status "Starting pip updates..."
         
         # Update pip in base environment
         run_cmd "python -m pip install --upgrade pip" "Upgrading pip in base environment"
@@ -557,7 +556,7 @@ EOF
                     ((env_count++))
                     
                     if [[ "$VERBOSE" == true ]]; then
-                        print_status "Updating pip in environment: $env_name"
+                        zsu_print_status "Updating pip in environment: $env_name"
                     fi
                     
                     # Use the detected conda command
@@ -565,27 +564,27 @@ EOF
                 fi
             done
             
-            print_status "Updated pip in $env_count conda environments"
+            zsu_print_status "Updated pip in $env_count conda environments"
         else
-            print_warning "No conda environments directory found"
+            zsu_print_warning "No conda environments directory found"
         fi
         
         # Clean pip cache once at the end
         run_cmd "python -m pip cache purge" "Cleaning pip cache"
         
-        print_success "Pip updates completed"
+        zsu_print_success "Pip updates completed"
     }
 
     # Flatpak update function
     local update_flatpak() {
         if [[ "$SKIP_FLATPAK" == true ]]; then
-            print_status "Skipping Flatpak updates"
+            zsu_print_status "Skipping Flatpak updates"
             return 0
         fi
         
         # Check if flatpak is installed
         if ! command -v flatpak >/dev/null 2>&1; then
-            print_warning "Flatpak not found, skipping Flatpak updates"
+            zsu_print_warning "Flatpak not found, skipping Flatpak updates"
             return 0
         fi
         
@@ -601,20 +600,20 @@ EOF
                 
                 if [[ $time_diff -lt $cache_threshold ]]; then
                     if [[ "$VERBOSE" == true ]]; then
-                        print_status "Flatpak updated recently ($((time_diff / 60)) minutes ago), skipping"
+                        zsu_print_status "Flatpak updated recently ($((time_diff / 60)) minutes ago), skipping"
                     else
-                        print_status "Flatpak applications are recent, skipping update"
+                        zsu_print_status "Flatpak applications are recent, skipping update"
                     fi
                     return 0
                 fi
             fi
         fi
         
-        print_status "Starting Flatpak updates..."
+        zsu_print_status "Starting Flatpak updates..."
         
         # Update repositories
         if [[ "$VERBOSE" == true ]]; then
-            print_status "Updating Flatpak repositories"
+            zsu_print_status "Updating Flatpak repositories"
         fi
         
         if [[ "$DRY_RUN" == true ]]; then
@@ -640,7 +639,7 @@ EOF
         
         if [[ "$updates_available" == true ]]; then
             if [[ "$VERBOSE" == true ]]; then
-                print_status "Updating Flatpak applications"
+                zsu_print_status "Updating Flatpak applications"
             fi
             
             if [[ "$DRY_RUN" == true ]]; then
@@ -653,12 +652,12 @@ EOF
                 fi
             fi
         else
-            print_status "No Flatpak applications to update"
+            zsu_print_status "No Flatpak applications to update"
         fi
         
         # Clean up unused runtimes
         if [[ "$VERBOSE" == true ]]; then
-            print_status "Cleaning unused Flatpak runtimes"
+            zsu_print_status "Cleaning unused Flatpak runtimes"
         fi
         
         if [[ "$DRY_RUN" == true ]]; then
@@ -677,17 +676,17 @@ EOF
             touch "$cache_file" 2>/dev/null
         fi
         
-        print_success "Flatpak updates completed"
+        zsu_print_success "Flatpak updates completed"
     }
 
     # Main execution logic
     local main() {
         local start_time=$(date +%s)
         
-        print_status "System update started at $(date)"
+        zsu_print_status "System update started at $(date)"
         
         if [[ "$DRY_RUN" == true ]]; then
-            print_warning "DRY RUN MODE - No commands will be executed"
+            zsu_print_warning "DRY RUN MODE - No commands will be executed"
         fi
         
         # Detect conda installation early
@@ -707,7 +706,9 @@ EOF
         local end_time=$(date +%s)
         local duration=$((end_time - start_time))
         
-        print_success "System update completed in ${duration} seconds"
+        zsu_print_success "System update completed in ${duration} seconds"
+
+        return 0
     }
 
     # Parse arguments first
@@ -726,6 +727,8 @@ EOF
     
     # Run the main update function
     main
+
+    return 0
 }
 
 # Tab completion for the function
