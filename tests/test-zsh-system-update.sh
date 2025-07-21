@@ -198,8 +198,16 @@ load_plugin() {
     fi
     
     # Copy plugin to test location
-    mkdir -p "$HOME/.oh-my-zsh/custom/plugins/zsh-system-update"
-    cp "$plugin_source" "$HOME/.oh-my-zsh/custom/plugins/zsh-system-update/"
+    target_dir="${HOME}/.oh-my-zsh/custom/plugins/zsh-system-update"
+    plugin_dir="$(dirname "$plugin_source")"
+    mkdir -p "${target_dir}"
+    cp "$plugin_source" "${target_dir}"
+
+    # Check if the plugin has a modular structure
+    if [[ -d "${plugin_dir}/lib" ]]; then
+        echo -e "${BLUE}ℹ:${NC} Detected modular plugin structure"
+        cp -r "${plugin_dir}/lib" "${target_dir}"
+    fi
     
     export PLUGIN_FILE="$HOME/.oh-my-zsh/custom/plugins/zsh-system-update/zsh-system-update.plugin.zsh"
     
