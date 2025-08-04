@@ -21,7 +21,7 @@ This project follows a simple code of conduct: be respectful, constructive, and 
 
 ### Prerequisites
 
-- Linux/Unix environment (tested on Linux Mint/Ubuntu)
+- Linux environment (tested on Linux Mint and Ubuntu via GitHub Actions)
 - zsh shell with oh-my-zsh installed
 - Basic familiarity with shell scripting
 - Git for version control
@@ -32,10 +32,11 @@ We welcome contributions in several areas:
 
 - **Bug fixes** - Fix issues with existing functionality
 - **Performance improvements** - Optimize caching or execution speed
-- **New features** - Add support for new package managers or options
+- **Enhanced detection** - Improve auto-detection of conda installations and environments
 - **Documentation** - Improve README, add examples, fix typos
 - **Testing** - Add test cases or improve test coverage
-- **Platform support** - Extend support to other Linux distributions
+- **Error handling** - Better error recovery and user feedback
+- **Caching improvements** - Enhance intelligent caching strategies
 
 ## Development Setup
 
@@ -70,13 +71,27 @@ We welcome contributions in several areas:
 
 ### File Structure
 
-The main plugin code is in `zsh-system-update.plugin.zsh`. Key sections include:
+The project follows a modular architecture:
 
-- **Function definitions** - Helper functions for colors, command execution
-- **Caching logic** - Time-based update decisions
-- **Update functions** - APT, Conda, and pip update logic  
-- **Argument parsing** - Command-line option handling
-- **Main execution** - Orchestration of update process
+**Main Plugin (`zsh-system-update.plugin.zsh`):**
+- Plugin initialization and module imports
+- Command-line argument parsing
+- Main execution orchestration
+- Tab completion definitions
+
+**Package Managers (`lib/managers/`):**
+- `apt-manager.zsh` - APT system package management with smart caching
+- `conda-manager.zsh` - Conda/mamba environment management with auto-detection
+- `pip-manager.zsh` - pip updates across all conda environments
+- `flatpak-manager.zsh` - Flatpak application management with caching
+
+**Utilities (`lib/utils/`):**
+- `output.zsh` - Color-coded messaging and command execution utilities
+
+**Tests (`tests/`):**
+- Unit tests for individual managers
+- Integration tests for full workflows
+- Performance benchmarks
 
 ### Coding Standards
 
@@ -119,7 +134,7 @@ zsh-system-update --force-apt-update --force-conda-update
 Consider testing in:
 - Fresh conda installations
 - Systems with/without conda
-- Different Linux distributions (if possible)
+- Ubuntu/Linux Mint environments (primary supported platforms)
 - Various network conditions
 
 ### Performance Testing

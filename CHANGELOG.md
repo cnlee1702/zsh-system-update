@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-07-21
+
+### Changed
+- **Modular Architecture Refactor** - Split functionality into separate manager modules
+  - Moved APT management to `lib/managers/apt-manager.zsh`
+  - Moved Conda management to `lib/managers/conda-manager.zsh`
+  - Moved pip management to `lib/managers/pip-manager.zsh`
+  - Moved Flatpak management to `lib/managers/flatpak-manager.zsh`
+  - Moved output utilities to `lib/utils/output.zsh`
+- **Enhanced Test Suite** - Improved assertions and dynamic conda detection testing
+- **Code Quality** - Cleaned up unused test arrays and improved error handling
+
+### Technical Details
+- Improved maintainability with clear separation of concerns
+- Each package manager now has its own dedicated module
+- Enhanced dependency management with proper module imports
+- Better error handling and graceful fallbacks for missing dependencies
+
 ## [0.2.0] - 2025-06-25
 
 ### Added
@@ -87,6 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implements proper argument parsing with validation
 - Follows oh-my-zsh plugin conventions and structure
 
-[Unreleased]: https://github.com/yourusername/zsh-system-update/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/yourusername/zsh-system-update/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/yourusername/zsh-system-update/releases/tag/v0.1.0
+[Unreleased]: https://github.com/cnlee1702/zsh-system-update/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/cnlee1702/zsh-system-update/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/cnlee1702/zsh-system-update/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/cnlee1702/zsh-system-update/releases/tag/v0.1.0
