@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2025-08-04
+
+### Added
+- **Comprehensive Test Suite Enhancement** - Dramatically expanded test coverage
+  - **Manager Module Unit Tests** - 32 new unit tests covering all package managers
+    - APT Manager: 7 tests (availability, cache logic, skip functionality, dry run)
+    - Conda Manager: 10 tests (detection, cache thresholds, environment handling)
+    - Pip Manager: 7 tests (functionality, environments, cache management)
+    - Flatpak Manager: 8 tests (availability, cache logic, force updates)
+  - **Professional Test Runner** - New `tests/run-unit-tests.sh` with consolidated reporting
+  - **Shared Test Utilities** - Reusable testing framework with bash/zsh compatibility
+  - **Enhanced Integration Tests** - Expanded existing test suite to 38 total tests
+
+### Fixed
+- **Test Suite Compatibility** - Resolved zsh compatibility warnings in test execution
+  - Fixed "colors: command not found" warnings with proper compatibility layer
+  - Enhanced test utilities with bash/zsh mock functions
+  - Warning-free test execution across all environments
+- **CI Configuration** - Streamlined GitHub Actions workflow triggers
+  - Removed `develop` branch from CI triggers, now only triggers on `master` branch
+  - Added comprehensive test suite execution to CI pipeline
+  - Removed hardcoded test counts and success messages from CI output
+
+### Technical Details
+- Comprehensive test coverage: 70 total tests (38 integration + 32 unit tests)
+- All functionality preserved and tested (70/70 tests pass, 100% success rate)
+- Maintains full backward compatibility with all command-line options
+- Warning-free test execution with proper zsh/bash compatibility layer
+- Enhanced CI/CD pipeline with comprehensive test validation
+
 ## [0.3.1] - 2025-08-04
 
 ### Fixed
@@ -119,7 +149,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implements proper argument parsing with validation
 - Follows oh-my-zsh plugin conventions and structure
 
-[Unreleased]: https://github.com/cnlee1702/zsh-system-update/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/cnlee1702/zsh-system-update/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/cnlee1702/zsh-system-update/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/cnlee1702/zsh-system-update/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/cnlee1702/zsh-system-update/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/cnlee1702/zsh-system-update/compare/v0.1.0...v0.2.0
