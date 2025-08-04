@@ -31,6 +31,18 @@ zsu_import "lib/managers/flatpak-manager.zsh"
 
 # Main system update function
 zsh-system-update() {
+    # Hook guard to prevent undesired execution
+    if [[ -n "${ZSU_RUNNING:-}" ]]; then
+        return 0
+    fi
+    
+    # Set execution guard
+    local ZSU_RUNNING=1
+    export ZSU_RUNNING
+    
+    # Ensure guard is cleared on exit
+    trap 'unset ZSU_RUNNING' EXIT INT TERM
+    
     # Local variables to avoid global namespace pollution
     local QUIET=false
     local SKIP_APT=false

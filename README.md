@@ -258,6 +258,7 @@ MIT License - see LICENSE file for details.
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ### Latest Changes
+- **v0.3.1**: Added hook guard protection to prevent undesired function execution
 - **v0.3.0**: Modular architecture refactor, enhanced test suite, improved maintainability
 - **v0.2.0**: Added Flatpak support, enhanced caching, comprehensive package manager support
 - **v0.1.0**: Initial release with APT, Conda, and pip support
