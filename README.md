@@ -1,15 +1,17 @@
 # zsh-system-update
 
-A smart, efficient system update plugin for oh-my-zsh that handles APT packages, Conda environments, and pip installations with intelligent caching to minimize update times.
+A smart, efficient system update plugin for oh-my-zsh that handles APT packages, Conda environments, pip installations, and Flatpak applications with intelligent caching to minimize update times.
 
 ## Features
 
 - 🚀 **Smart Caching**: Skips unnecessary updates based on configurable time thresholds
+- 📦 **Multi-Package Manager Support**: Updates APT, Conda, pip, and Flatpak applications
 - 🐍 **Multi-Environment Support**: Updates pip across all conda environments automatically  
 - ⚡ **Performance Optimized**: 60-80% faster on repeated runs within cache windows
 - 🎛️ **Flexible Options**: Granular control over what gets updated
 - 🎨 **Beautiful Output**: Color-coded status messages and progress indicators
 - 🛡️ **Safe Defaults**: Handles configuration prompts and errors gracefully
+- 🔧 **Modular Architecture**: Clean separation of package managers for easy maintenance
 
 ## Quick Start
 
@@ -52,6 +54,7 @@ The plugin uses intelligent time-based caching to avoid unnecessary work:
 
 - **APT updates**: Cached for 1 hour (repositories don't change frequently)
 - **Conda updates**: Cached for 2 hours (larger operations, less frequent updates)
+- **Flatpak updates**: Cached for 2 hours (similar to Conda, less frequent updates)
 - **Pip updates**: Always run (fast operations, checked per environment)
 
 ### Performance Impact
@@ -73,13 +76,16 @@ The plugin uses intelligent time-based caching to avoid unnecessary work:
 ### Selective Updates
 - `--apt-only` - Only run APT system package updates
 - `--conda-only` - Only run Conda and pip environment updates
+- `--flatpak-only` - Only run Flatpak application updates
 - `--skip-apt` - Skip APT system updates
 - `--skip-conda` - Skip Conda updates  
 - `--skip-pip` - Skip pip updates
+- `--skip-flatpak` - Skip Flatpak updates
 
 ### Cache Control
 - `--force-apt-update` - Force APT update even if recently updated
 - `--force-conda-update` - Force Conda update even if recently updated
+- `--force-flatpak-update` - Force Flatpak update even if recently updated
 
 ## Usage Examples
 
@@ -95,6 +101,9 @@ zsh-system-update --apt-only
 
 # Python environments only  
 zsh-system-update --conda-only
+
+# Flatpak applications only
+zsh-system-update --flatpak-only
 
 # Check what needs updating
 zsh-system-update --dry-run --verbose
@@ -121,6 +130,12 @@ zsh-system-update --quiet
 - Updates pip in all conda environments
 - Cleans pip cache after all updates
 
+### Flatpak Applications
+- Updates application repositories (`appstream`)
+- Updates all installed Flatpak applications
+- Removes unused runtimes and dependencies
+- Cleans Flatpak cache
+
 ## Requirements
 
 ### System Requirements
@@ -130,26 +145,34 @@ zsh-system-update --quiet
 
 ### Dependencies
 The plugin checks for required commands automatically:
-- `apt-get` (system packages)
-- `conda` (conda environment management)  
-- `python` (pip updates)
-- Standard Unix utilities (`basename`, `wc`, `grep`)
+- `apt-get` (system packages) - optional, skipped if not available
+- `conda` (conda environment management) - optional, auto-detected from multiple locations
+- `python` (pip updates) - required for pip functionality
+- `flatpak` (Flatpak applications) - optional, skipped if not available
+- Standard Unix utilities (`basename`, `wc`, `grep`, `stat`, `find`)
 
 ## Configuration
 
 ### Time Thresholds
-You can modify the cache thresholds by editing the plugin file:
+You can modify the cache thresholds by editing the respective manager files:
 
 ```bash
-# In zsh-system-update.plugin.zsh
+# In lib/managers/apt-manager.zsh
 local update_threshold=3600   # APT: 1 hour
+
+# In lib/managers/conda-manager.zsh  
 local update_threshold=7200   # Conda: 2 hours
+
+# In lib/managers/flatpak-manager.zsh
+local cache_threshold=7200    # Flatpak: 2 hours
 ```
 
-### Conda Installation Paths
-The plugin automatically detects conda installations in:
-- `~/miniconda3/`
-- `~/anaconda3/`
+### Conda Installation Detection
+The plugin automatically detects conda installations from multiple sources:
+- Commands in PATH (`conda` command, `CONDA_EXE` environment variable)
+- Common installation locations (`~/miniconda3/`, `~/anaconda3/`, `~/mambaforge/`, etc.)
+- Environment variables (`CONDA_PREFIX`, `CONDA_EXE`)
+- Package manager installations (`/opt/`, `/usr/local/`)
 
 ## Troubleshooting
 
@@ -172,9 +195,22 @@ sudo -v
 
 **Conda not found:**
 ```bash
-# Check conda installation
+# Check conda installation and detection
 which conda
 conda --version
+
+# Test conda detection with verbose output
+zsh-system-update --conda-only --verbose --dry-run
+```
+
+**Flatpak issues:**
+```bash
+# Check Flatpak installation
+which flatpak
+flatpak --version
+
+# List installed Flatpak applications
+flatpak list
 ```
 
 ### Debug Mode
@@ -191,9 +227,27 @@ Contributions are welcome! Please feel free to submit issues, feature requests, 
 ### Development Setup
 
 1. Fork the repository
-2. Make changes to `zsh-system-update.plugin.zsh`
-3. Test with `source ~/.zshrc && zsh-system-update --dry-run`
-4. Submit a pull request
+2. Make changes to the main plugin file or manager modules in `lib/managers/`
+3. Test with `source ~/.zshrc && zsh-system-update --dry-run --verbose`
+4. Run specific manager tests: `zsh-system-update --[manager]-only --dry-run --verbose`
+5. Submit a pull request
+
+### Project Structure
+
+```
+zsh-system-update/
+├── zsh-system-update.plugin.zsh    # Main plugin entry point
+├── lib/
+│   ├── managers/                   # Package manager implementations
+│   │   ├── apt-manager.zsh        # APT package management
+│   │   ├── conda-manager.zsh      # Conda environment management
+│   │   ├── pip-manager.zsh        # pip package management
+│   │   └── flatpak-manager.zsh    # Flatpak application management
+│   └── utils/
+│       └── output.zsh             # Color output and messaging utilities
+├── tests/                          # Test suite
+└── docs/                          # Additional documentation
+```
 
 ## License
 
@@ -201,11 +255,11 @@ MIT License - see LICENSE file for details.
 
 ## Changelog
 
-### v0.1.0
-- Initial release with smart caching
-- Support for APT, Conda, and pip updates
-- Comprehensive command-line options
-- Tab completion support
+See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
+
+### Latest Changes
+- **v0.2.0**: Added Flatpak support, enhanced caching, modular architecture
+- **v0.1.0**: Initial release with APT, Conda, and pip support
 
 ## Related Projects
 
