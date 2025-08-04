@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout:*)",
+      "Bash(./tests/test-zsh-system-update.sh:*)",
+      "Bash(mkdir:*)",
+      "Bash(./tests/unit/test-apt-manager.sh:*)",
+      "Bash(./tests/unit/test-conda-manager.sh:*)",
+      "Bash(./tests/unit/test-pip-manager.sh:*)",
+      "Bash(./tests/unit/test-flatpak-manager.sh:*)",
+      "Bash(./tests/run-unit-tests.sh:*)",
+      "Bash(./tests/coverage-analysis.sh:*)",
+      "Bash(./tests/run-coverage.sh:*)"
+    ],
+    "deny": []
+  }
+}

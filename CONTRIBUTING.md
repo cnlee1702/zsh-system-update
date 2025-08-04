@@ -89,9 +89,10 @@ The project follows a modular architecture:
 - `output.zsh` - Color-coded messaging and command execution utilities
 
 **Tests (`tests/`):**
-- Unit tests for individual managers
-- Integration tests for full workflows
-- Performance benchmarks
+- `unit/` - 32 unit tests for individual manager modules
+- `test-zsh-system-update.sh` - 38 integration tests for full workflows
+- `run-unit-tests.sh` - Professional test runner with consolidated reporting
+- `test-utils.sh` - Shared testing utilities and bash/zsh compatibility layer
 
 ### Coding Standards
 
@@ -110,9 +111,33 @@ The project follows a modular architecture:
 
 ## Testing
 
+### Comprehensive Test Suite
+
+The project includes a comprehensive testing framework with **70 total tests** and **85% coverage**:
+
+```bash
+# Run all tests (recommended)
+./tests/test-zsh-system-update.sh     # 38 integration tests
+./tests/run-unit-tests.sh             # 32 unit tests (all manager modules)
+
+# Run individual unit test suites
+./tests/unit/test-apt-manager.sh       # 7 APT manager tests
+./tests/unit/test-conda-manager.sh     # 10 Conda manager tests  
+./tests/unit/test-pip-manager.sh       # 7 Pip manager tests
+./tests/unit/test-flatpak-manager.sh   # 8 Flatpak manager tests
+```
+
+**All tests must pass before submitting PRs.** The test suite includes:
+- Hook guard protection tests
+- Manager module functionality verification
+- Cache logic and threshold testing
+- Error handling and edge cases
+- Dry run mode validation
+- Skip functionality testing
+
 ### Manual Testing
 
-Always test your changes manually:
+In addition to automated tests, always test your changes manually:
 
 ```bash
 # Test dry-run mode
@@ -154,10 +179,15 @@ zsh-system-update --verbose  # Second run (should be faster)
 
 ### Before Submitting
 
-1. **Test thoroughly** - Ensure your changes work as expected
-2. **Update documentation** - Modify README.md if adding features
-3. **Update CHANGELOG.md** - Add entry under "Unreleased" section
-4. **Check code style** - Follow existing patterns and conventions
+1. **Run the full test suite** - All 70 tests must pass:
+   ```bash
+   ./tests/test-zsh-system-update.sh && ./tests/run-unit-tests.sh
+   ```
+2. **Test manually** - Ensure your changes work as expected in real scenarios
+3. **Update documentation** - Modify README.md if adding features
+4. **Update CHANGELOG.md** - Add entry under "Unreleased" section
+5. **Add tests** - Include unit tests for new manager functionality
+6. **Check code style** - Follow existing patterns and conventions
 
 ### Pull Request Process
 

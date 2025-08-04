@@ -421,6 +421,65 @@ test_performance_features() {
     assert_contains "Provides execution timing" "zsh -c 'source \"$PLUGIN_FILE\"; zsh-system-update --dry-run'" "completed in.*seconds"
 }
 
+# Test hook guard functionality
+test_hook_guard_functionality() {
+    print_test_header "Hook Guard Protection Tests"
+    
+    # Test 1: Guard prevents execution when ZSU_RUNNING is set
+    run_test "Hook guard prevents execution when ZSU_RUNNING=1"
+    local guard_output
+    guard_output=$(ZSU_RUNNING=1 zsh -c "source '$PLUGIN_FILE' 2>/dev/null; zsh-system-update --dry-run --verbose" 2>&1)
+    local guard_lines=$(echo "$guard_output" | wc -l)
+    
+    # Should produce minimal output (just the silent return)
+    if [[ $guard_lines -le 1 ]]; then
+        echo -e "${GREEN}✓ PASS${NC}: Hook guard prevents execution when ZSU_RUNNING=1"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Hook guard prevents execution when ZSU_RUNNING=1"
+        echo "  Expected: ≤1 lines of output, Got: $guard_lines lines"
+        echo "  Output: $guard_output"
+        ((TESTS_FAILED++))
+    fi
+    
+    # Test 2: Normal execution works when guard is unset
+    run_test "Normal execution works when ZSU_RUNNING is unset"
+    local normal_output
+    normal_output=$(unset ZSU_RUNNING; zsh -c "source '$PLUGIN_FILE' 2>/dev/null; zsh-system-update --dry-run --quiet" 2>&1)
+    local normal_lines=$(echo "$normal_output" | wc -l)
+    
+    # Should produce substantial output (normal execution)
+    if [[ $normal_lines -gt 3 ]]; then
+        echo -e "${GREEN}✓ PASS${NC}: Normal execution works when ZSU_RUNNING is unset"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Normal execution works when ZSU_RUNNING is unset"
+        echo "  Expected: >3 lines of output, Got: $normal_lines lines"
+        echo "  Output: $normal_output"
+        ((TESTS_FAILED++))
+    fi
+    
+    # Test 3: Guard variable cleanup after execution
+    run_test "Guard variable cleaned up after execution"
+    local cleanup_check
+    cleanup_check=$(zsh -c "source '$PLUGIN_FILE' 2>/dev/null; zsh-system-update --dry-run >/dev/null 2>&1; echo \${ZSU_RUNNING:-UNSET}" 2>/dev/null)
+    
+    if [[ "$cleanup_check" == "UNSET" ]]; then
+        echo -e "${GREEN}✓ PASS${NC}: Guard variable cleaned up after execution"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Guard variable cleaned up after execution"
+        echo "  Expected: UNSET, Got: $cleanup_check"
+        ((TESTS_FAILED++))
+    fi
+    
+    # Test 4: Hook guard implementation exists in code
+    assert_success "Hook guard implementation exists in plugin file" "grep -q 'ZSU_RUNNING' '$PLUGIN_FILE'"
+    
+    # Test 5: Trap cleanup is properly configured
+    assert_success "Trap cleanup is configured" "grep -q \"trap.*ZSU_RUNNING.*EXIT\" '$PLUGIN_FILE'"
+}
+
 # Cleanup test environment
 cleanup_test_env() {
     print_test_header "Cleaning up test environment"
@@ -499,6 +558,7 @@ main() {
     test_output_formatting
     test_tab_completion
     test_performance_features
+    test_hook_guard_functionality
     
     cleanup_test_env
     print_test_summary
