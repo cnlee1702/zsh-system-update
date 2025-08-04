@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2025-08-04
+
+### Fixed
+- **Hook Guard Protection** - Added execution guard to prevent undesired function execution
+  - Prevents recursive or unexpected execution when other commands are run
+  - Uses `ZSU_RUNNING` environment variable to track execution state
+  - Includes proper cleanup with trap handlers for EXIT, INT, and TERM signals
+  - Resolves issue where plugin would unexpectedly run during `conda activate` and similar commands
+
+### Technical Details
+- Hook guard implementation at function entry point (`zsh-system-update.plugin.zsh:34-44`)
+- All existing functionality preserved and tested (33/33 tests pass)
+- Maintains full backward compatibility with all command-line options
+
 ## [0.3.0] - 2025-07-21
 
 ### Changed
@@ -105,7 +119,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implements proper argument parsing with validation
 - Follows oh-my-zsh plugin conventions and structure
 
-[Unreleased]: https://github.com/cnlee1702/zsh-system-update/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/cnlee1702/zsh-system-update/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/cnlee1702/zsh-system-update/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/cnlee1702/zsh-system-update/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/cnlee1702/zsh-system-update/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/cnlee1702/zsh-system-update/releases/tag/v0.1.0
