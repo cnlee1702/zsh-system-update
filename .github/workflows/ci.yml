@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ master, develop ]
+    branches: [ master ]
   pull_request:
     branches: [ master ]
   schedule:
@@ -33,11 +33,17 @@ jobs:
         # Install oh-my-zsh without changing shell
         sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
         
-    - name: Make test script executable
-      run: chmod +x tests/test-zsh-system-update.sh
+    - name: Make test scripts executable
+      run: |
+        chmod +x tests/test-zsh-system-update.sh
+        chmod +x tests/run-unit-tests.sh
+        chmod +x tests/unit/*.sh
       
-    - name: Run test suite
+    - name: Run integration test suite
       run: ./tests/test-zsh-system-update.sh
+      
+    - name: Run unit test suite
+      run: ./tests/run-unit-tests.sh
       
     - name: Test plugin loading in actual zsh
       run: |
@@ -81,10 +87,13 @@ jobs:
         # ShellCheck the main plugin file
         shellcheck -x zsh-system-update.plugin.zsh || true
         
-    - name: Run ShellCheck on test script
+    - name: Run ShellCheck on test scripts
       run: |
-        # ShellCheck the test script
+        # ShellCheck all test scripts
         shellcheck tests/test-zsh-system-update.sh || true
+        shellcheck tests/run-unit-tests.sh || true
+        shellcheck tests/test-utils.sh || true
+        find tests/unit/ -name "*.sh" -exec shellcheck {} \; || true
         
     - name: Check for common issues
       run: |
@@ -100,8 +109,6 @@ jobs:
           echo "Error: Plugin should use 'local' for function variables"
           exit 1
         fi
-        
-        echo "Basic checks passed"
 
   security:
     name: Security Scan
@@ -152,11 +159,16 @@ jobs:
         fi
         
         # Check for required sections
-        for section in "Installation" "Usage" "Options" "Examples"; do
+        for section in "Installation" "Usage" "Options" "Examples" "Testing Framework"; do
           if ! grep -q "$section" README.md; then
             echo "Warning: README missing $section section"
           fi
         done
+        
+        # Check for test suite information
+        if ! grep -q "70 total tests" README.md; then
+          echo "Warning: README missing comprehensive test suite information"
+        fi
         
         echo "Documentation check completed"
         
@@ -209,6 +221,59 @@ jobs:
           echo 'Testing with real conda installation...'
           zsh-system-update --conda-only --dry-run --verbose
         "
+
+  comprehensive-tests:
+    name: Comprehensive Test Coverage
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install zsh and dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zsh
+        
+    - name: Set up oh-my-zsh (minimal)
+      run: |
+        sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+        
+    - name: Make all test scripts executable
+      run: |
+        chmod +x tests/test-zsh-system-update.sh
+        chmod +x tests/run-unit-tests.sh
+        chmod +x tests/unit/*.sh
+        
+    - name: Run complete test suite
+      run: |
+        echo "🚀 Running comprehensive test suite..."
+        echo "=================================="
+        
+        echo "📋 Integration Tests:"
+        ./tests/test-zsh-system-update.sh
+        
+        echo -e "\n📋 Unit Tests:"
+        ./tests/run-unit-tests.sh
+        
+        
+    - name: Verify test structure
+      run: |
+        echo "🔍 Verifying test structure..."
+        
+        # Count test files
+        integration_tests=$(find tests/ -name "test-zsh-system-update.sh" | wc -l)
+        unit_test_files=$(find tests/unit/ -name "test-*.sh" | wc -l)
+        
+        echo "Integration test files: $integration_tests"
+        echo "Unit test files: $unit_test_files"
+        
+        if [ "$unit_test_files" -ne 4 ]; then
+          echo "❌ Expected 4 unit test files, found $unit_test_files"
+          exit 1
+        fi
+        
+        echo "✅ Test structure verification passed"
         
     - name: Test pip functionality
       run: |
@@ -245,5 +310,4 @@ jobs:
           echo 'Plugin loaded successfully on zsh version:'
           zsh --version
           zsh-system-update --help >/dev/null
-          echo 'Compatibility test passed'
         "

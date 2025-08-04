@@ -25,3 +25,6 @@ ehthumbs.db
 
 # Cache directories
 .cache/
+
+# Claude Code settings
+.claude/
