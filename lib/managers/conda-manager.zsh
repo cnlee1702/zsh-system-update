@@ -2,26 +2,35 @@
 # Conda manager for zsh-system-update
 
 # Dependency guard for output utilities
-if ! typeset -f zsu_print_status >/dev/null 2>&1; then
-    local module="lib/utils/output.zsh"
-    local plugin_dir="${ZSH_CUSTOM:-${HOME}/.oh-my-zsh/custom}/plugins/zsh-system-update"
-    local module_path="${plugin_dir}/${module}"
-    print "ERROR: zsu_print_status not found. Ensure output utilities are loaded." >&2
-    source "${module_path}"
-fi
+# Load output utilities in isolated scope
+_zsu_load_output_utils() {
+    if ! typeset -f zsu_print_status >/dev/null 2>&1; then
+        local module="lib/utils/output.zsh"
+        local plugin_dir="${ZSH_CUSTOM:-${HOME}/.oh-my-zsh/custom}/plugins/zsh-system-update"
+        local module_path="${plugin_dir}/${module}"
+        print "ERROR: zsu_print_status not found. Ensure output utilities are loaded." >&2
+        source "${module_path}"
+    fi
+    unset -f _zsu_load_output_utils
+}
+_zsu_load_output_utils
 
-# Load cache utilities
-if ! typeset -f zsu_cache_needs_update >/dev/null 2>&1; then
-    local cache_module="lib/utils/cache.zsh"
-    local plugin_dir="${TEST_PLUGIN_DIR:-${ZSH_CUSTOM:-${HOME}/.oh-my-zsh/custom}/plugins/zsh-system-update}"
-    local cache_module_path="${plugin_dir}/${cache_module}"
-    source "${cache_module_path}"
-fi
+# Load cache utilities in isolated scope
+_zsu_load_cache_utils() {
+    if ! typeset -f zsu_cache_needs_update >/dev/null 2>&1; then
+        local cache_module="lib/utils/cache.zsh"
+        local plugin_dir="${TEST_PLUGIN_DIR:-${ZSH_CUSTOM:-${HOME}/.oh-my-zsh/custom}/plugins/zsh-system-update}"
+        local cache_module_path="${plugin_dir}/${cache_module}"
+        source "${cache_module_path}"
+    fi
+    unset -f _zsu_load_cache_utils
+}
+_zsu_load_cache_utils
 
 # Conda detection variables
-local CONDA_CMD=""
-local CONDA_BASE=""
-local CONDA_ENVS_DIR=""
+CONDA_CMD=""
+CONDA_BASE=""
+CONDA_ENVS_DIR=""
 
 # Dynamic conda detection function
 zsu_detect_conda_installation() {
@@ -46,7 +55,8 @@ zsu_detect_conda_installation() {
             fi
             
             # Try to find conda binary in common locations within PATH
-            local path_entries=(${(s.:.)PATH})
+            # Convert PATH to array using bash-compatible syntax
+            IFS=':' read -ra path_entries <<< "$PATH"
             for path_dir in "${path_entries[@]}"; do
                 if [[ -x "${path_dir}/conda" ]]; then
                     conda_cmd="${path_dir}/conda"

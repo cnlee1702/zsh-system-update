@@ -56,7 +56,7 @@ zsh-system-update() {
     local FORCE_FLATPAK_UPDATE=false
 
     # Check for required commands
-    local check_dependencies() {
+    check_dependencies() {
         local missing_commands=()
         local required_commands=("basename" "wc" "grep" "python")
         
@@ -80,7 +80,7 @@ zsh-system-update() {
     }
 
     # Function to run command with optional dry-run
-    local run_cmd() {
+    run_cmd() {
         local cmd="$1"
         local description="$2"
         
@@ -107,7 +107,7 @@ zsh-system-update() {
     }
 
     # Help function
-    local show_help() {
+    show_help() {
         cat << EOF
 zsh-system-update - System Update Plugin
 
@@ -141,7 +141,7 @@ EOF
     }
 
     # Parse command line arguments
-    local parse_args() {
+    parse_args() {
         while [[ $# -gt 0 ]]; do
             case $1 in
                 -h|--help)
@@ -216,7 +216,7 @@ EOF
     }
 
     # Main execution logic
-    local main() {
+    main() {
         local start_time=$(date +%s)
         
         # Export current time for cache utilities
