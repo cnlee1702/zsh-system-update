@@ -65,6 +65,21 @@ The plugin uses intelligent time-based caching to avoid unnecessary work:
 | Within cache window | 3-4 minutes | 30-60 seconds | **75-85%** |
 | Force updates | 3-4 minutes | 3-4 minutes | 0% |
 
+### Cache Management
+
+You can manage caches directly without running updates:
+
+```bash
+# View cache status for all managers
+zsh-system-update --list-cache
+
+# Clear specific manager caches to force fresh updates
+zsh-system-update --clear-cache apt conda
+
+# Clear all caches at once
+zsh-system-update --clear-all-cache
+```
+
 ## Command Options
 
 ### Basic Options
@@ -86,6 +101,9 @@ The plugin uses intelligent time-based caching to avoid unnecessary work:
 - `--force-apt-update` - Force APT update even if recently updated
 - `--force-conda-update` - Force Conda update even if recently updated
 - `--force-flatpak-update` - Force Flatpak update even if recently updated
+- `--clear-cache <manager(s)>` - Clear cache for specific manager(s) (apt, conda, pip, flatpak)
+- `--clear-all-cache` - Clear all package manager caches
+- `--list-cache` - List all cache entries with timestamps
 
 ## Usage Examples
 
@@ -110,6 +128,12 @@ zsh-system-update --dry-run --verbose
 
 # Silent background update
 zsh-system-update --quiet
+
+# Cache management examples
+zsh-system-update --list-cache                    # Show cache status
+zsh-system-update --clear-cache apt               # Clear APT cache only  
+zsh-system-update --clear-cache apt conda         # Clear APT and Conda caches
+zsh-system-update --clear-all-cache               # Clear all caches
 ```
 
 ## What Gets Updated
@@ -297,11 +321,11 @@ MIT License - see LICENSE file for details.
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ### Latest Changes
+- **v0.3.4**: Cache management commands (`--clear-cache`, `--clear-all-cache`, `--list-cache`) with comprehensive test coverage
+- **v0.3.3**: Unified cache system with configurable thresholds and expanded test suite (51 total tests)
 - **v0.3.2**: Comprehensive test suite enhancement with 70 total tests
 - **v0.3.1**: Hook guard protection to prevent undesired execution contexts
 - **v0.3.0**: Modular architecture refactor, enhanced test suite, improved maintainability
-- **v0.2.0**: Added Flatpak support, enhanced caching, comprehensive package manager support
-- **v0.1.0**: Initial release with APT, Conda, and pip support
 
 ## Related Projects
 

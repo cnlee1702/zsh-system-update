@@ -138,6 +138,58 @@ zsu_cache_cleanup() {
     find "$ZSU_CACHE_DIR" -type f -mtime +30 -delete 2>/dev/null || true
 }
 
+# Clear cache for a specific manager
+# Usage: zsu_cache_clear <manager_name> [environment_id]
+zsu_cache_clear() {
+    local manager="$1"
+    local env_id="${2:-}"
+    
+    if [[ -z "$manager" ]]; then
+        echo "ERROR: Manager name is required" >&2
+        return 1
+    fi
+    
+    zsu_cache_init
+    
+    local cache_file="${ZSU_CACHE_DIR}/${manager}"
+    [[ -n "$env_id" ]] && cache_file="${cache_file}_${env_id}"
+    
+    if [[ -f "$cache_file" ]]; then
+        rm -f "$cache_file" 2>/dev/null
+        if [[ -n "$env_id" ]]; then
+            echo "Cleared cache for ${manager} (environment: ${env_id})"
+        else
+            echo "Cleared cache for ${manager}"
+        fi
+    else
+        if [[ -n "$env_id" ]]; then
+            echo "No cache found for ${manager} (environment: ${env_id})"
+        else
+            echo "No cache found for ${manager}"
+        fi
+    fi
+}
+
+# Clear all cache entries
+# Usage: zsu_cache_clear_all
+zsu_cache_clear_all() {
+    zsu_cache_init
+    
+    if [[ ! -d "$ZSU_CACHE_DIR" ]] || [[ -z "$(ls -A "$ZSU_CACHE_DIR" 2>/dev/null)" ]]; then
+        echo "No cache entries to clear."
+        return
+    fi
+    
+    local count=0
+    for cache_file in "$ZSU_CACHE_DIR"/*; do
+        if [[ -f "$cache_file" ]]; then
+            rm -f "$cache_file" 2>/dev/null && ((count++))
+        fi
+    done
+    
+    echo "Cleared ${count} cache entries."
+}
+
 # List all cache entries with their timestamps
 # Usage: zsu_cache_list
 zsu_cache_list() {

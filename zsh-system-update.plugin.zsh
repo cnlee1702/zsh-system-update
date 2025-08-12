@@ -54,6 +54,9 @@ zsh-system-update() {
     local FORCE_APT_UPDATE=false
     local FORCE_CONDA_UPDATE=false
     local FORCE_FLATPAK_UPDATE=false
+    local CLEAR_CACHE=()
+    local CLEAR_ALL_CACHE=false
+    local LIST_CACHE=false
 
     # Check for required commands
     check_dependencies() {
@@ -129,6 +132,9 @@ OPTIONS:
     --force-apt-update  Force apt update even if recently updated
     --force-conda-update Force conda update even if recently updated
     --force-flatpak-update Force flatpak update even if recently updated
+    --clear-cache       Clear cache for specific manager(s) (apt|conda|pip|flatpak)
+    --clear-all-cache   Clear all package manager caches
+    --list-cache        List all cache entries with timestamps
 
 EXAMPLES:
     zsh-system-update                    # Full system update
@@ -136,6 +142,9 @@ EXAMPLES:
     zsh-system-update --apt-only         # Only system packages
     zsh-system-update --skip-apt         # Only Python environments
     zsh-system-update --dry-run          # Preview what would run
+    zsh-system-update --clear-cache apt conda # Clear APT and Conda caches
+    zsh-system-update --clear-all-cache  # Clear all caches
+    zsh-system-update --list-cache       # Show cache status
 
 EOF
     }
@@ -205,6 +214,38 @@ EOF
                     FORCE_FLATPAK_UPDATE=true
                     shift
                     ;;
+                --clear-cache)
+                    if [[ -z "$2" ]]; then
+                        zsu_print_error "--clear-cache requires at least one manager name (apt|conda|pip|flatpak)"
+                        return 1
+                    fi
+                    # Collect all manager names until we hit another option or end of args
+                    shift # Skip --clear-cache
+                    while [[ $# -gt 0 && "$1" != --* ]]; do
+                        case "$1" in
+                            apt|conda|pip|flatpak)
+                                CLEAR_CACHE+=("$1")
+                                ;;
+                            *)
+                                zsu_print_error "Invalid manager '$1'. Valid options: apt, conda, pip, flatpak"
+                                return 1
+                                ;;
+                        esac
+                        shift
+                    done
+                    if [[ ${#CLEAR_CACHE[@]} -eq 0 ]]; then
+                        zsu_print_error "--clear-cache requires at least one manager name (apt|conda|pip|flatpak)"
+                        return 1
+                    fi
+                    ;;
+                --clear-all-cache)
+                    CLEAR_ALL_CACHE=true
+                    shift
+                    ;;
+                --list-cache)
+                    LIST_CACHE=true
+                    shift
+                    ;;
                 *)
                     zsu_print_error "Unknown option: $1"
                     show_help
@@ -230,6 +271,24 @@ EOF
         
         # Detect conda installation early
         zsu_detect_conda_installation
+        
+        # Handle cache operations if requested (these don't require dependencies)
+        if [[ "$LIST_CACHE" == true ]]; then
+            zsu_cache_list
+            return 0
+        fi
+        
+        if [[ "$CLEAR_ALL_CACHE" == true ]]; then
+            zsu_cache_clear_all
+            return 0
+        fi
+        
+        if [[ ${#CLEAR_CACHE[@]} -gt 0 ]]; then
+            for manager in "${CLEAR_CACHE[@]}"; do
+                zsu_cache_clear "$manager"
+            done
+            return 0
+        fi
         
         # Check for required dependencies
         if ! check_dependencies; then
@@ -297,7 +356,10 @@ _zsh_system_update() {
         '--flatpak-only[Only run Flatpak updates]' \
         '--force-apt-update[Force apt update even if recently updated]' \
         '--force-conda-update[Force conda update even if recently updated]' \
-        '--force-flatpak-update[Force flatpak update even if recently updated]'
+        '--force-flatpak-update[Force flatpak update even if recently updated]' \
+        '*--clear-cache[Clear cache for specific manager(s)]:manager:(apt conda pip flatpak)' \
+        '--clear-all-cache[Clear all package manager caches]' \
+        '--list-cache[List all cache entries with timestamps]'
 }
 
 # Register the completion function
