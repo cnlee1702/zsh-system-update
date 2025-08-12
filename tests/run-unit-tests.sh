@@ -104,6 +104,7 @@ main() {
         "$SCRIPT_DIR/unit/test-conda-manager.sh:Conda Manager"
         "$SCRIPT_DIR/unit/test-pip-manager.sh:Pip Manager"
         "$SCRIPT_DIR/unit/test-flatpak-manager.sh:Flatpak Manager"
+        "$SCRIPT_DIR/unit/test-cache-utils.sh:Cache Utilities"
     )
     
     # Run each test suite
@@ -167,6 +168,7 @@ show_help() {
     echo "  • Conda Manager Unit Tests"
     echo "  • Pip Manager Unit Tests"
     echo "  • Flatpak Manager Unit Tests"
+    echo "  • Cache Utilities Unit Tests"
 }
 
 # Parse command line arguments

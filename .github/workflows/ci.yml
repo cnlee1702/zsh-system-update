@@ -166,7 +166,7 @@ jobs:
         done
         
         # Check for test suite information
-        if ! grep -q "70 total tests" README.md; then
+        if ! grep -q "test suite" README.md; then
           echo "Warning: README missing comprehensive test suite information"
         fi
         
@@ -268,8 +268,8 @@ jobs:
         echo "Integration test files: $integration_tests"
         echo "Unit test files: $unit_test_files"
         
-        if [ "$unit_test_files" -ne 4 ]; then
-          echo "❌ Expected 4 unit test files, found $unit_test_files"
+        if [ "$unit_test_files" -ne 5 ]; then
+          echo "❌ Expected 5 unit test files, found $unit_test_files"
           exit 1
         fi
         

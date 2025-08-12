@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2025-08-12
+
+### Added
+- **Cache Management Commands** - Direct cache control without running updates
+  - `--clear-cache <manager(s)>` - Clear cache for specific manager(s) (apt, conda, pip, flatpak)
+  - `--clear-all-cache` - Clear all package manager caches at once
+  - `--list-cache` - List all cache entries with timestamps
+  - Support for multiple managers: `--clear-cache apt conda pip`
+  - Input validation for manager names with helpful error messages
+  - Full zsh tab completion support for new cache options
+
+### Enhanced
+- **Cache Clearing Functions** - New core cache utilities in `lib/utils/cache.zsh`
+  - `zsu_cache_clear()` - Clear cache for specific manager with optional environment ID
+  - `zsu_cache_clear_all()` - Clear all cache entries with count reporting
+  - Comprehensive error handling and user-friendly status messages
+  - Support for environment-specific cache clearing (e.g., conda environments)
+
+### Testing
+- **Cache Management Test Suite** - New comprehensive test coverage
+  - 19 new tests in `tests/unit/test-cache-utils.sh`
+  - Integration tests for cache clearing with existing functionality
+  - Error handling validation for invalid manager names
+  - Multi-manager cache clearing validation
+  - Total test coverage now: 51 individual tests across 5 test suites
+
 ## [0.3.3] - 2025-08-12
 
 ### Added
