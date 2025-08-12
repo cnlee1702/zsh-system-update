@@ -23,7 +23,7 @@ zsu_import() {
 
 # Import required modules
 zsu_import "lib/utils/output.zsh"
-# zsu_import "lib/utils/cache.zsh"
+zsu_import "lib/utils/cache.zsh"
 zsu_import "lib/managers/apt-manager.zsh"
 zsu_import "lib/managers/conda-manager.zsh"
 zsu_import "lib/managers/pip-manager.zsh"
@@ -219,6 +219,9 @@ EOF
     local main() {
         local start_time=$(date +%s)
         
+        # Export current time for cache utilities
+        export ZSU_CURRENT_TIME="$start_time"
+        
         zsu_print_status "System update started at $(date)"
         
         if [[ "$DRY_RUN" == true ]]; then
@@ -233,10 +236,19 @@ EOF
             return 1
         fi
         
-        # Run updates
-        zsu_update_apt $VERBOSE $SKIP_APT $QUIET $FORCE_APT_UPDATE
-        zsu_update_flatpak $VERBOSE $SKIP_FLATPAK $QUIET $FORCE_FLATPAK_UPDATE $DRY_RUN
-        zsu_update_conda $VERBOSE $SKIP_CONDA $QUIET $FORCE_CONDA_UPDATE
+        # Run updates and update cache timestamps on success
+        if zsu_update_apt $VERBOSE $SKIP_APT $QUIET $FORCE_APT_UPDATE; then
+            zsu_cache_touch "apt"
+        fi
+        
+        if zsu_update_flatpak $VERBOSE $SKIP_FLATPAK $QUIET $FORCE_FLATPAK_UPDATE $DRY_RUN; then
+            zsu_cache_touch "flatpak"
+        fi
+        
+        if zsu_update_conda $VERBOSE $SKIP_CONDA $QUIET $FORCE_CONDA_UPDATE; then
+            zsu_cache_touch "conda"
+        fi
+        
         zsu_update_pip $VERBOSE $SKIP_PIP $QUIET $DRY_RUN
         
         local end_time=$(date +%s)

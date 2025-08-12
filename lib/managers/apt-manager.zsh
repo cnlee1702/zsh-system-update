@@ -10,41 +10,30 @@ if ! typeset -f zsu_print_status >/dev/null 2>&1; then
     source "${module_path}"
 fi
 
+# Load cache utilities
+if ! typeset -f zsu_cache_needs_update >/dev/null 2>&1; then
+    local cache_module="lib/utils/cache.zsh"
+    local plugin_dir="${TEST_PLUGIN_DIR:-${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-system-update}"
+    local cache_module_path="${plugin_dir}/${cache_module}"
+    source "${cache_module_path}"
+fi
+
 zsu_apt_update_needed() {
     local VERBOSE="${1:-false}"
 
-    local apt_lists_dir="/var/lib/apt/lists"
-    local update_threshold=3600  # 1 hour in seconds
-    local current_time=$(date +%s)
-    
-    # Check if apt lists directory exists and has recent files
-    if [[ ! -d "$apt_lists_dir" ]]; then
-        return 0  # Directory doesn't exist, update needed
-    fi
-    
-    # Find the most recent file in apt lists directory
-    local latest_file=$(find "$apt_lists_dir" -name "*Release*" -type f -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -1 | cut -d' ' -f1)
-    
-    if [[ -z "$latest_file" ]]; then
-        return 0  # No Release files found, update needed
-    fi
-    
-    # Convert to integer (remove decimal part)
-    latest_file=${latest_file%.*}
-    local time_diff=$((current_time - latest_file))
-    
-    if [[ $time_diff -gt $update_threshold ]]; then
+    if zsu_cache_needs_update "apt"; then
         if [[ "$VERBOSE" == true ]]; then
-            zsu_print_status "Last apt update was $((time_diff / 60)) minutes ago, updating..."
+            local time_since=$(zsu_cache_time_since_update_human "apt")
+            zsu_print_status "Last apt update was ${time_since}, updating..."
         fi
         return 0  # Update needed
     else
         if [[ "$VERBOSE" == true ]]; then
-            zsu_print_status "Apt lists are recent ($((time_diff / 60)) minutes old), skipping update"
+            local time_since=$(zsu_cache_time_since_update_human "apt")
+            zsu_print_status "Apt was updated recently (${time_since}), skipping update"
         fi
         return 1  # Update not needed
     fi
-
 }
 
 zsu_update_apt() {
