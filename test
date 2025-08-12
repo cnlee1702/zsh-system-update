@@ -25,16 +25,22 @@ print_header() {
 
 print_success() {
     echo -e "${GREEN}✓ $1${NC}"
-    ((TESTS_COMPLETED++))
 }
 
 print_warning() {
     echo -e "${YELLOW}⚠ $1${NC}"
-    ((TESTS_COMPLETED++))
 }
 
 print_error() {
     echo -e "${RED}✗ $1${NC}"
+}
+
+# Phase tracking functions (separate from individual message functions)
+mark_phase_completed() {
+    ((TESTS_COMPLETED++))
+}
+
+mark_phase_failed() {
     ((TESTS_FAILED++))
 }
 
@@ -45,8 +51,10 @@ track_test_suite() {
     
     if [ $exit_code -eq 0 ]; then
         print_success "$suite_name completed successfully"
+        mark_phase_completed
     else
         print_error "$suite_name failed (exit code: $exit_code)"
+        mark_phase_failed
         return $exit_code
     fi
 }
@@ -75,10 +83,12 @@ check_dependencies() {
     if [ ${#missing_deps[@]} -ne 0 ]; then
         print_error "Missing dependencies: ${missing_deps[*]}"
         echo "Install with: sudo apt-get install ${missing_deps[*]}"
+        mark_phase_failed
         return 1
     fi
     
     print_success "Dependencies check passed"
+    mark_phase_completed
     return 0
 }
 
@@ -168,7 +178,7 @@ run_lint() {
     lint_file "zsh-system-update.plugin.zsh" "plugin"
     
     # Check all library files
-    echo "\nChecking library files:"
+    echo -e "\nChecking library files:"
     local lib_files
     lib_files=($(find lib/ -name "*.zsh" -type f | sort))
     for file in "${lib_files[@]}"; do
@@ -176,7 +186,7 @@ run_lint() {
     done
     
     # Check all test files  
-    echo "\nChecking test files:"
+    echo -e "\nChecking test files:"
     local test_files
     test_files=($(find tests/ -name "*.sh" -type f | sort))
     for file in "${test_files[@]}"; do
@@ -184,21 +194,23 @@ run_lint() {
     done
     
     # Summary
-    echo "\n${BLUE}Lint Summary:${NC}"
+    echo -e "\n${BLUE}Lint Summary:${NC}"
     echo "  Files checked: $files_checked"
-    echo "  Files with warnings: ${YELLOW}$files_with_warnings${NC}"
-    echo "  Files with errors: ${RED}$files_with_errors${NC}"
+    echo -e "  Files with warnings: ${YELLOW}$files_with_warnings${NC}"
+    echo -e "  Files with errors: ${RED}$files_with_errors${NC}"
     
     if [ "$lint_failed" = true ]; then
         print_error "Linting failed - found critical errors in $files_with_errors files"
+        mark_phase_failed
         return 1
     elif [ "$files_with_warnings" -gt 0 ]; then
         print_warning "Linting passed with $files_with_warnings files having minor warnings"
-        return 0
+        mark_phase_completed
     else
         print_success "All files passed linting with no issues"
-        return 0
+        mark_phase_completed
     fi
+    return 0
 }
 
 # Basic security checks
@@ -217,6 +229,7 @@ run_security_checks() {
     fi
     
     print_success "Security checks passed"
+    mark_phase_completed
 }
 
 # Check documentation
@@ -244,6 +257,7 @@ check_documentation() {
     done
     
     print_success "Documentation check passed"
+    mark_phase_completed
 }
 
 # Test plugin loading
@@ -254,13 +268,16 @@ test_plugin_loading() {
         print_success "Plugin loads without errors"
     else
         print_error "Plugin failed to load"
+        mark_phase_failed
         return 1
     fi
     
     if zsh -c "source ./zsh-system-update.plugin.zsh; zsh-system-update --help" >/dev/null 2>&1; then
         print_success "Plugin help function works"
+        mark_phase_completed
     else
         print_error "Plugin help function failed"
+        mark_phase_failed
         return 1
     fi
 }
