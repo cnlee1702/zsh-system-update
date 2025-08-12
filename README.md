@@ -153,19 +153,21 @@ The plugin checks for required commands automatically:
 
 ## Configuration
 
-### Time Thresholds
-You can modify the cache thresholds by editing the respective manager files:
+### Cache Configuration
+Configure cache thresholds using environment variables in your `~/.zshrc`:
 
 ```bash
-# In lib/managers/apt-manager.zsh
-local update_threshold=3600   # APT: 1 hour
+# Cache thresholds (in seconds)
+export ZSU_CACHE_THRESHOLD_APT=3600      # APT: 1 hour (default)
+export ZSU_CACHE_THRESHOLD_CONDA=604800  # Conda: 1 week (default) 
+export ZSU_CACHE_THRESHOLD_FLATPAK=86400 # Flatpak: 24 hours (default)
+export ZSU_CACHE_THRESHOLD_PIP=86400     # Pip: 24 hours (default)
 
-# In lib/managers/conda-manager.zsh  
-local update_threshold=7200   # Conda: 2 hours
-
-# In lib/managers/flatpak-manager.zsh
-local cache_threshold=7200    # Flatpak: 2 hours
+# Example: More frequent APT updates
+export ZSU_CACHE_THRESHOLD_APT=1800      # Check every 30 minutes
 ```
+
+The unified cache system provides consistent behavior across all package managers with easily configurable thresholds.
 
 ### Conda Installation Detection
 The plugin automatically detects conda installations from multiple sources:
@@ -245,12 +247,21 @@ Contributions are welcome! Please feel free to submit issues, feature requests, 
 
 ### Testing Framework
 
-The plugin includes a comprehensive testing framework with 70 total tests:
+The plugin includes a comprehensive testing framework with enhanced test runner:
 
-- **Integration Tests** (38 tests): End-to-end functionality, hook guard protection
-- **Unit Tests** (32 tests): Individual manager module validation
-- **Test Coverage**: 85% overall coverage with 100% success rate
-- **Professional Reporting**: Consolidated test runner with detailed statistics
+**Test Execution Options:**
+```bash
+./test                    # Full comprehensive test suite (17s)
+./test --unit-only        # Unit tests only (32 tests, 5s)
+./test --integration-only # Integration tests only (38 tests, 13s)
+./test --lint-only        # Code quality linting (14 files, 1s)
+```
+
+**Test Coverage:**
+- **Total Tests**: 70 (38 integration + 32 unit tests)
+- **Code Quality**: 14 shell files linted (0 errors, 13 minor warnings)
+- **Success Rate**: 100% pass rate across all test suites
+- **Enhanced Reporting**: Professional output with execution timing and visual progress
 
 ### Project Structure
 
@@ -295,6 +306,7 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 ## Related Projects
 
 - [oh-my-zsh](https://github.com/ohmyzsh/ohmyzsh) - The framework this plugin extends
+- [flatpak](https://flatpak.org/) - Application distribution framework
 - [conda](https://docs.conda.io/) - Package and environment management
 - [pip](https://pip.pypa.io/) - Python package installer
 

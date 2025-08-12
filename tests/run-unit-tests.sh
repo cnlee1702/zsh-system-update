@@ -92,7 +92,7 @@ run_test_suite() {
 # Main execution
 main() {
     echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║                 ZSH-SYSTEM-UPDATE UNIT TESTS              ║${NC}"
+    echo -e "${BLUE}║                 ZSH-SYSTEM-UPDATE UNIT TESTS               ║${NC}"
     echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
     
     local start_time=$(date +%s)

@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2025-08-12
+
+### Added
+- **Unified Cache System** - Centralized caching with configurable thresholds
+  - Shared cache utilities in `lib/utils/cache.zsh` for all package managers
+  - Configurable cache thresholds via environment variables:
+    - `ZSU_CACHE_THRESHOLD_APT` (default: 1 hour)
+    - `ZSU_CACHE_THRESHOLD_CONDA` (default: 168 hours/1 week)
+    - `ZSU_CACHE_THRESHOLD_FLATPAK` (default: 24 hours)
+    - `ZSU_CACHE_THRESHOLD_PIP` (default: 24 hours)
+  - Environment-specific caching for conda and pip virtual environments
+  - Force update flags override cache behavior for immediate updates
+
+- **Comprehensive Test Suite Enhancement** - Expanded testing infrastructure
+  - Enhanced main test runner (`./test`) with new options:
+    - `--unit-only` - Run 32 unit tests across 4 managers (5s execution)
+    - `--integration-only` - Run 38 integration tests (13s execution) 
+    - `--lint-only` - Comprehensive linting of all shell files
+  - **Expanded Linting Scope** - Now lints 14 files vs previous 2 files
+    - All library files in `lib/` directory (6 files)
+    - All test files in `tests/` directory (7 files)  
+    - Smart error vs warning categorization (warnings don't fail build)
+  - Enhanced visual reporting with execution timing and detailed summaries
+  - Comprehensive test phase tracking with accurate progress indicators
+
+### Fixed
+- **Code Quality Improvements** - Resolved critical shellcheck errors
+  - Fixed SC2168 errors: Invalid 'local' declarations at top-level in library files
+  - Implemented clean namespace management using self-cleaning functions
+  - Fixed zsh-specific syntax compatibility issues for cross-shell support
+  - Corrected function definition syntax in main plugin file
+
+- **Test Runner Display Issues** - Enhanced visual feedback
+  - Fixed color code rendering (ANSI codes now display as actual colors)
+  - Corrected test phase counting logic (perfect 1:1 started/completed mapping)
+  - Improved progress tracking accuracy and reliability
+
+### Technical Details
+- **Cache System Architecture**: Unified interface with manager-specific thresholds
+- **Code Quality**: 0 critical errors, 13 minor warnings across 14 linted files
+- **Test Coverage**: 70 total tests (38 integration + 32 unit tests) with 100% pass rate
+- **Enhanced Workflow**: Multiple test execution modes for different development needs
+- **Visual Excellence**: Professional terminal output with proper color rendering
+
 ## [0.3.2] - 2025-08-04
 
 ### Added

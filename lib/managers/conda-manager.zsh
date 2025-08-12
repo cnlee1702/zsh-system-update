@@ -2,18 +2,35 @@
 # Conda manager for zsh-system-update
 
 # Dependency guard for output utilities
-if ! typeset -f zsu_print_status >/dev/null 2>&1; then
-    local module="lib/utils/output.zsh"
-    local plugin_dir="${ZSH_CUSTOM:-${HOME}/.oh-my-zsh/custom}/plugins/zsh-system-update"
-    local module_path="${plugin_dir}/${module}"
-    print "ERROR: zsu_print_status not found. Ensure output utilities are loaded." >&2
-    source "${module_path}"
-fi
+# Load output utilities in isolated scope
+_zsu_load_output_utils() {
+    if ! typeset -f zsu_print_status >/dev/null 2>&1; then
+        local module="lib/utils/output.zsh"
+        local plugin_dir="${ZSH_CUSTOM:-${HOME}/.oh-my-zsh/custom}/plugins/zsh-system-update"
+        local module_path="${plugin_dir}/${module}"
+        print "ERROR: zsu_print_status not found. Ensure output utilities are loaded." >&2
+        source "${module_path}"
+    fi
+    unset -f _zsu_load_output_utils
+}
+_zsu_load_output_utils
+
+# Load cache utilities in isolated scope
+_zsu_load_cache_utils() {
+    if ! typeset -f zsu_cache_needs_update >/dev/null 2>&1; then
+        local cache_module="lib/utils/cache.zsh"
+        local plugin_dir="${TEST_PLUGIN_DIR:-${ZSH_CUSTOM:-${HOME}/.oh-my-zsh/custom}/plugins/zsh-system-update}"
+        local cache_module_path="${plugin_dir}/${cache_module}"
+        source "${cache_module_path}"
+    fi
+    unset -f _zsu_load_cache_utils
+}
+_zsu_load_cache_utils
 
 # Conda detection variables
-local CONDA_CMD=""
-local CONDA_BASE=""
-local CONDA_ENVS_DIR=""
+CONDA_CMD=""
+CONDA_BASE=""
+CONDA_ENVS_DIR=""
 
 # Dynamic conda detection function
 zsu_detect_conda_installation() {
@@ -38,7 +55,8 @@ zsu_detect_conda_installation() {
             fi
             
             # Try to find conda binary in common locations within PATH
-            local path_entries=(${(s.:.)PATH})
+            # Convert PATH to array using bash-compatible syntax
+            IFS=':' read -ra path_entries <<< "$PATH"
             for path_dir in "${path_entries[@]}"; do
                 if [[ -x "${path_dir}/conda" ]]; then
                     conda_cmd="${path_dir}/conda"
@@ -149,74 +167,26 @@ zsu_detect_conda_installation() {
 
 # Check if conda update is needed (within last 2 hours)
 zsu_conda_update_needed() {
-    local update_threshold=7200  # 2 hours in seconds
-    local current_time=$(date +%s)
+    local VERBOSE="${1:-false}"
     
     # Use detected conda base directory
     if [[ -z "$CONDA_BASE" ]]; then
         return 0  # No conda installation found, skip but don't error
     fi
-    
-    # Check conda's package cache directory
-    local conda_pkgs_dir="$CONDA_BASE/pkgs"
-    
-    if [[ ! -d "$conda_pkgs_dir" ]]; then
-        return 0  # No package directory found, assume update needed
-    fi
-    
-    # Check conda's repodata cache
-    local conda_cache_dir="$conda_pkgs_dir/cache"
-    
-    # Check conda info cache files
-    local conda_info_cache="$HOME/.conda/environments.txt"
-    local latest_timestamp=0
-    
-    # Check multiple possible cache locations
-    local cache_files=(
-        "$conda_cache_dir"
-        "$HOME/.conda"
-        "$conda_pkgs_dir/.conda_lock"
-        "$conda_info_cache"
-    )
-    
-    for cache_location in "${cache_files[@]}"; do
-        if [[ -e "$cache_location" ]]; then
-            local file_timestamp=$(stat -c %Y "$cache_location" 2>/dev/null || echo 0)
-            if [[ $file_timestamp -gt $latest_timestamp ]]; then
-                latest_timestamp=$file_timestamp
-            fi
-        fi
-    done
-    
-    # If we couldn't find any cache files, check when conda was last run
-    if [[ $latest_timestamp -eq 0 ]]; then
-        # Check conda history
-        local conda_history="$CONDA_BASE/conda-meta/history"
-        
-        if [[ -f "$conda_history" ]]; then
-            latest_timestamp=$(stat -c %Y "$conda_history" 2>/dev/null || echo 0)
-        fi
-    fi
-    
-    # If still no timestamp, assume update is needed
-    if [[ $latest_timestamp -eq 0 ]]; then
-        return 0
-    fi
-    
-    local time_diff=$((current_time - latest_timestamp))
-    
-    if [[ ${time_diff} -gt ${update_threshold} ]]; then
-        if [[ "${VERBOSE}" == true ]]; then
-            zsu_print_status "Last conda activity was $((time_diff / 60)) minutes ago, updating..."
+
+    if zsu_cache_needs_update "conda"; then
+        if [[ "$VERBOSE" == true ]]; then
+            local time_since=$(zsu_cache_time_since_update_human "conda")
+            zsu_print_status "Last conda update was ${time_since}, updating..."
         fi
         return 0  # Update needed
     else
-        if [[ "${VERBOSE}" == true ]]; then
-            zsu_print_status "Conda data is recent ($((time_diff / 60)) minutes old), checking if conda itself needs update"
+        if [[ "$VERBOSE" == true ]]; then
+            local time_since=$(zsu_cache_time_since_update_human "conda")
+            zsu_print_status "Conda was updated recently (${time_since}), skipping update"
         fi
         return 1  # Update not needed
     fi
-
 }
 
 # Conda update function
@@ -246,7 +216,7 @@ zsu_update_conda() {
     fi
     
     # Only update conda if needed (unless forced)
-    if [[ "${FORCE_CONDA_UPDATE}" == true ]] || zsu_conda_update_needed; then
+    if [[ "${FORCE_CONDA_UPDATE}" == true ]] || zsu_conda_update_needed "${VERBOSE}"; then
         # Check if mamba is available in the same environment
         local mamba_available=false
         local conda_dir=$(dirname "${CONDA_CMD}")

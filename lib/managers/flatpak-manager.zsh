@@ -2,13 +2,30 @@
 # Flatpak manager for zsh-system-update
 
 # Dependency guard for output utilities
-if ! typeset -f zsu_print_status >/dev/null 2>&1; then
-    local module="lib/utils/output.zsh"
-    local plugin_dir="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-system-update"
-    local module_path="${plugin_dir}/${module}"
-    print "ERROR: zsu_print_status not found. Ensure output utilities are loaded." >&2
-    source "${module_path}"
-fi
+# Load output utilities in isolated scope
+_zsu_load_output_utils() {
+    if ! typeset -f zsu_print_status >/dev/null 2>&1; then
+        local module="lib/utils/output.zsh"
+        local plugin_dir="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-system-update"
+        local module_path="${plugin_dir}/${module}"
+        print "ERROR: zsu_print_status not found. Ensure output utilities are loaded." >&2
+        source "${module_path}"
+    fi
+    unset -f _zsu_load_output_utils
+}
+_zsu_load_output_utils
+
+# Load cache utilities in isolated scope
+_zsu_load_cache_utils() {
+    if ! typeset -f zsu_cache_needs_update >/dev/null 2>&1; then
+        local cache_module="lib/utils/cache.zsh"
+        local plugin_dir="${TEST_PLUGIN_DIR:-${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-system-update}"
+        local cache_module_path="${plugin_dir}/${cache_module}"
+        source "${cache_module_path}"
+    fi
+    unset -f _zsu_load_cache_utils
+}
+_zsu_load_cache_utils
 
  # Flatpak update function
 
@@ -30,25 +47,15 @@ zsu_update_flatpak() {
         return 0
     fi
     
-    # Check cache unless forced (similar to conda cache check)
-    local cache_threshold=7200  # 2 hours in seconds
-    local current_time=$(date +%s)
-    local cache_file="$HOME/.cache/flatpak"
-    
-    if [[ "$FORCE_FLATPAK_UPDATE" != true ]]; then
-        if [[ -d "$cache_file" ]]; then
-            local latest_timestamp=$(stat -c %Y "$cache_file" 2>/dev/null || echo 0)
-            local time_diff=$((current_time - latest_timestamp))
-            
-            if [[ $time_diff -lt $cache_threshold ]]; then
-                if [[ "$VERBOSE" == true ]]; then
-                    zsu_print_status "Flatpak updated recently ($((time_diff / 60)) minutes ago), skipping"
-                else
-                    zsu_print_status "Flatpak applications are recent, skipping update"
-                fi
-                return 0
-            fi
+    # Check cache unless forced
+    if [[ "$FORCE_FLATPAK_UPDATE" != true ]] && ! zsu_cache_needs_update "flatpak"; then
+        if [[ "$VERBOSE" == true ]]; then
+            local time_since=$(zsu_cache_time_since_update_human "flatpak")
+            zsu_print_status "Flatpak updated recently (${time_since}), skipping"
+        else
+            zsu_print_status "Flatpak applications are recent, skipping update"
         fi
+        return 0
     fi
     
     zsu_print_status "Starting Flatpak updates..."
@@ -112,11 +119,6 @@ zsu_update_flatpak() {
         fi
     fi
     
-    # Update cache timestamp (only if not dry-run)
-    if [[ "$DRY_RUN" != true ]]; then
-        mkdir -p "$(dirname "$cache_file")" 2>/dev/null
-        touch "$cache_file" 2>/dev/null
-    fi
     
     zsu_print_success "Flatpak updates completed"
 

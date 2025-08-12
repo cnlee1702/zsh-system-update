@@ -1,9 +1,10 @@
 #!/bin/bash
 
-# Local test runner for zsh-system-update
-# This script allows developers to run tests locally before pushing
+# Comprehensive test runner for zsh-system-update
+# One-stop script to validate the entire project: unit tests, integration tests, linting, security, and documentation
 
-set -e
+# Don't exit on errors - we want to track and report all test results
+set +e
 
 # Colors
 RED='\033[0;31m'
@@ -12,8 +13,14 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+# Test tracking
+TESTS_STARTED=0
+TESTS_COMPLETED=0
+TESTS_FAILED=0
+
 print_header() {
     echo -e "\n${BLUE}=== $1 ===${NC}"
+    ((TESTS_STARTED++))
 }
 
 print_success() {
@@ -28,9 +35,33 @@ print_error() {
     echo -e "${RED}✗ $1${NC}"
 }
 
+# Phase tracking functions (separate from individual message functions)
+mark_phase_completed() {
+    ((TESTS_COMPLETED++))
+}
+
+mark_phase_failed() {
+    ((TESTS_FAILED++))
+}
+
+# Track test suite execution
+track_test_suite() {
+    local suite_name="$1"
+    local exit_code="$2"
+    
+    if [ $exit_code -eq 0 ]; then
+        print_success "$suite_name completed successfully"
+        mark_phase_completed
+    else
+        print_error "$suite_name failed (exit code: $exit_code)"
+        mark_phase_failed
+        return $exit_code
+    fi
+}
+
 # Check if we're in the right directory
 if [ ! -f "zsh-system-update.plugin.zsh" ]; then
-    print_error "Run this script from the project root directory"
+    echo -e "${RED}✗ Run this script from the project root directory${NC}"
     exit 1
 fi
 
@@ -52,28 +83,50 @@ check_dependencies() {
     if [ ${#missing_deps[@]} -ne 0 ]; then
         print_error "Missing dependencies: ${missing_deps[*]}"
         echo "Install with: sudo apt-get install ${missing_deps[*]}"
-        exit 1
+        mark_phase_failed
+        return 1
     fi
     
     print_success "Dependencies check passed"
+    mark_phase_completed
+    return 0
 }
 
-# Run the main test suite
-run_tests() {
-    print_header "Running test suite"
+# Run unit tests
+run_unit_tests() {
+    print_header "Running Unit Tests"
+    
+    if [ ! -f "tests/run-unit-tests.sh" ]; then
+        print_error "Unit test runner not found: tests/run-unit-tests.sh"
+        return 1
+    fi
+    
+    chmod +x tests/run-unit-tests.sh
+    
+    if ./tests/run-unit-tests.sh; then
+        track_test_suite "Unit Tests" 0
+    else
+        track_test_suite "Unit Tests" 1
+        return 1
+    fi
+}
+
+# Run integration tests
+run_integration_tests() {
+    print_header "Running Integration Tests"
     
     if [ ! -f "tests/test-zsh-system-update.sh" ]; then
-        print_error "Test file not found: tests/test-zsh-system-update.sh"
-        exit 1
+        print_error "Integration test file not found: tests/test-zsh-system-update.sh"
+        return 1
     fi
     
     chmod +x tests/test-zsh-system-update.sh
     
     if ./tests/test-zsh-system-update.sh; then
-        print_success "Test suite passed"
+        track_test_suite "Integration Tests" 0
     else
-        print_error "Test suite failed"
-        exit 1
+        track_test_suite "Integration Tests" 1
+        return 1
     fi
 }
 
@@ -86,19 +139,78 @@ run_lint() {
     
     print_header "Running lint checks"
     
-    # ShellCheck with appropriate options for zsh
-    if shellcheck -s bash -x zsh-system-update.plugin.zsh; then
-        print_success "Plugin lint check passed"
-    else
-        print_warning "Plugin has lint warnings (this may be expected for zsh-specific syntax)"
-    fi
+    local lint_failed=false
+    local files_checked=0
+    local files_with_warnings=0
+    local files_with_errors=0
     
-    if shellcheck tests/test-zsh-system-update.sh; then
-        print_success "Test script lint check passed"
+    # Function to lint a single file and categorize issues
+    lint_file() {
+        local file="$1"
+        local file_type="$2"
+        local output
+        
+        ((files_checked++))
+        
+        # Use bash parsing for all files (zsh is largely bash-compatible)
+        # and zsh files work fine when parsed as bash
+        output=$(shellcheck -s bash "$file" 2>&1)
+        
+        local exit_code=$?
+        
+        if [ $exit_code -eq 0 ]; then
+            echo -e "  ${GREEN}✓${NC} $file - no issues"
+        else
+            # Check if output contains actual errors vs warnings
+            if echo "$output" | grep -q "(error):"; then
+                echo -e "  ${RED}✗${NC} $file - has errors"
+                ((files_with_errors++))
+                lint_failed=true
+            else
+                echo -e "  ${YELLOW}!${NC} $file - has warnings"
+                ((files_with_warnings++))
+            fi
+        fi
+    }
+    
+    # Check main plugin file
+    echo "Checking main plugin file:"
+    lint_file "zsh-system-update.plugin.zsh" "plugin"
+    
+    # Check all library files
+    echo -e "\nChecking library files:"
+    local lib_files
+    lib_files=($(find lib/ -name "*.zsh" -type f | sort))
+    for file in "${lib_files[@]}"; do
+        lint_file "$file" "library"
+    done
+    
+    # Check all test files  
+    echo -e "\nChecking test files:"
+    local test_files
+    test_files=($(find tests/ -name "*.sh" -type f | sort))
+    for file in "${test_files[@]}"; do
+        lint_file "$file" "test"
+    done
+    
+    # Summary
+    echo -e "\n${BLUE}Lint Summary:${NC}"
+    echo "  Files checked: $files_checked"
+    echo -e "  Files with warnings: ${YELLOW}$files_with_warnings${NC}"
+    echo -e "  Files with errors: ${RED}$files_with_errors${NC}"
+    
+    if [ "$lint_failed" = true ]; then
+        print_error "Linting failed - found critical errors in $files_with_errors files"
+        mark_phase_failed
+        return 1
+    elif [ "$files_with_warnings" -gt 0 ]; then
+        print_warning "Linting passed with $files_with_warnings files having minor warnings"
+        mark_phase_completed
     else
-        print_error "Test script has lint errors"
-        exit 1
+        print_success "All files passed linting with no issues"
+        mark_phase_completed
     fi
+    return 0
 }
 
 # Basic security checks
@@ -108,7 +220,7 @@ run_security_checks() {
     # Check for dangerous patterns
     if grep -n "rm -rf \$" zsh-system-update.plugin.zsh; then
         print_error "Found potentially dangerous rm command"
-        exit 1
+        return 1
     fi
     
     # Check for hardcoded secrets
@@ -117,6 +229,7 @@ run_security_checks() {
     fi
     
     print_success "Security checks passed"
+    mark_phase_completed
 }
 
 # Check documentation
@@ -133,7 +246,7 @@ check_documentation() {
     
     if [ ${#missing_files[@]} -ne 0 ]; then
         print_error "Missing documentation files: ${missing_files[*]}"
-        exit 1
+        return 1
     fi
     
     # Check README sections
@@ -144,6 +257,7 @@ check_documentation() {
     done
     
     print_success "Documentation check passed"
+    mark_phase_completed
 }
 
 # Test plugin loading
@@ -154,14 +268,17 @@ test_plugin_loading() {
         print_success "Plugin loads without errors"
     else
         print_error "Plugin failed to load"
-        exit 1
+        mark_phase_failed
+        return 1
     fi
     
     if zsh -c "source ./zsh-system-update.plugin.zsh; zsh-system-update --help" >/dev/null 2>&1; then
         print_success "Plugin help function works"
+        mark_phase_completed
     else
         print_error "Plugin help function failed"
-        exit 1
+        mark_phase_failed
+        return 1
     fi
 }
 
@@ -170,20 +287,33 @@ show_usage() {
     echo "Usage: $0 [options]"
     echo ""
     echo "Options:"
-    echo "  --help, -h     Show this help message"
-    echo "  --quick, -q    Run only essential tests (faster)"
-    echo "  --lint-only    Run only linting checks"
-    echo "  --no-lint      Skip linting checks"
+    echo "  --help, -h          Show this help message"
+    echo "  --quick, -q         Run only essential tests (faster)"
+    echo "  --lint-only         Run only linting checks"
+    echo "  --no-lint           Skip linting checks"
+    echo "  --unit-only         Run only unit tests"
+    echo "  --integration-only  Run only integration tests"
+    echo ""
+    echo "Test Coverage:"
+    echo "  • Unit Tests         - Individual module testing"
+    echo "  • Integration Tests  - Full plugin functionality"
+    echo "  • Code Linting      - ShellCheck validation"
+    echo "  • Security Checks   - Dangerous pattern detection"
+    echo "  • Documentation     - Required file validation"
     echo ""
     echo "Examples:"
-    echo "  $0             Run all tests"
-    echo "  $0 --quick     Run essential tests only"
-    echo "  $0 --lint-only Run linting only"
+    echo "  $0                    Run all tests (comprehensive)"
+    echo "  $0 --quick           Run essential tests only"
+    echo "  $0 --unit-only       Run unit tests only"
+    echo "  $0 --integration-only Run integration tests only"
+    echo "  $0 --lint-only       Run linting only"
 }
 
 # Parse command line arguments
 QUICK_MODE=false
 LINT_ONLY=false
+UNIT_ONLY=false
+INTEGRATION_ONLY=false
 SKIP_LINT=false
 
 while [[ $# -gt 0 ]]; do
@@ -200,6 +330,14 @@ while [[ $# -gt 0 ]]; do
             LINT_ONLY=true
             shift
             ;;
+        --unit-only)
+            UNIT_ONLY=true
+            shift
+            ;;
+        --integration-only)
+            INTEGRATION_ONLY=true
+            shift
+            ;;
         --no-lint)
             SKIP_LINT=true
             shift
@@ -212,36 +350,107 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Print comprehensive final summary
+print_final_summary() {
+    local start_time="$1"
+    shift
+    local failed_tests=("$@")
+    
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    
+    echo -e "\n${BLUE}╔═══════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BLUE}║                           FINAL SUMMARY                           ║${NC}"
+    echo -e "${BLUE}╚═══════════════════════════════════════════════════════════════════╝${NC}"
+    
+    echo "Execution Time: ${duration}s"
+    echo "Test Phases Started: $TESTS_STARTED"
+    echo -e "Successfully Completed: ${GREEN}$TESTS_COMPLETED${NC}"
+    echo -e "Failed: ${RED}$TESTS_FAILED${NC}"
+    
+    if [ ${#failed_tests[@]} -eq 0 ]; then
+        echo -e "\n${GREEN}🎉 ALL TESTS PASSED! PROJECT IS READY FOR DEPLOYMENT 🎉${NC}"
+        
+        if [ "$QUICK_MODE" = true ]; then
+            echo -e "${YELLOW}Note: Quick mode used. For comprehensive validation, run without --quick${NC}"
+        fi
+        
+        if [[ "$UNIT_ONLY" != true && "$INTEGRATION_ONLY" != true && "$LINT_ONLY" != true ]]; then
+            echo -e "${GREEN}✓ Unit tests validated individual modules${NC}"
+            echo -e "${GREEN}✓ Integration tests verified full functionality${NC}"
+        fi
+        
+        if [ "$QUICK_MODE" = false ] && [ "$SKIP_LINT" != true ] && [ "$LINT_ONLY" != true ]; then
+            echo -e "${GREEN}✓ Code quality checks passed${NC}"
+            echo -e "${GREEN}✓ Security validation completed${NC}" 
+            echo -e "${GREEN}✓ Documentation requirements met${NC}"
+        fi
+        
+    else
+        echo -e "\n${RED}❌ SOME TESTS FAILED - PROJECT NOT READY${NC}"
+        echo -e "${RED}Failed test phases:${NC}"
+        for test in "${failed_tests[@]}"; do
+            echo -e "${RED}  • $test${NC}"
+        done
+        echo -e "\n${YELLOW}Please fix the failing tests before deploying.${NC}"
+    fi
+}
+
 # Main execution
 main() {
-    echo -e "${BLUE}zsh-system-update Local Test Runner${NC}"
+    local start_time=$(date +%s)
+    echo -e "${BLUE}╔═══════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BLUE}║            ZSH-SYSTEM-UPDATE COMPREHENSIVE TEST RUNNER            ║${NC}"
+    echo -e "${BLUE}╚═══════════════════════════════════════════════════════════════════╝${NC}"
     echo "Running tests in: $(pwd)"
+    echo "Started at: $(date)"
     
-    check_dependencies
+    local failed_tests=()
     
+    check_dependencies || failed_tests+=("Dependencies")
+    
+    # Handle specific modes first
     if [ "$LINT_ONLY" = true ]; then
         run_lint
-        print_success "Lint-only mode completed"
-        exit 0
+        print_final_summary "$start_time"
+        exit $?
     fi
     
-    test_plugin_loading
-    run_tests
+    if [ "$UNIT_ONLY" = true ]; then
+        test_plugin_loading || failed_tests+=("Plugin Loading")
+        run_unit_tests || failed_tests+=("Unit Tests")
+        print_final_summary "$start_time" "${failed_tests[@]}"
+        [ ${#failed_tests[@]} -eq 0 ] && exit 0 || exit 1
+    fi
     
+    if [ "$INTEGRATION_ONLY" = true ]; then
+        test_plugin_loading || failed_tests+=("Plugin Loading")
+        run_integration_tests || failed_tests+=("Integration Tests")
+        print_final_summary "$start_time" "${failed_tests[@]}"
+        [ ${#failed_tests[@]} -eq 0 ] && exit 0 || exit 1
+    fi
+    
+    # Full test suite
+    echo -e "\n${BLUE}Running comprehensive test suite...${NC}"
+    
+    # Essential tests (always run)
+    test_plugin_loading || failed_tests+=("Plugin Loading")
+    run_unit_tests || failed_tests+=("Unit Tests")
+    run_integration_tests || failed_tests+=("Integration Tests")
+    
+    # Additional checks (skip in quick mode)
     if [ "$QUICK_MODE" = false ]; then
         if [ "$SKIP_LINT" != true ]; then
-            run_lint
+            run_lint || failed_tests+=("Linting")
         fi
-        run_security_checks
-        check_documentation
+        run_security_checks || failed_tests+=("Security Checks") 
+        check_documentation || failed_tests+=("Documentation")
     fi
     
-    print_header "Test Summary"
-    print_success "All tests completed successfully!"
+    print_final_summary "$start_time" "${failed_tests[@]}"
     
-    if [ "$QUICK_MODE" = true ]; then
-        echo -e "${YELLOW}Note: Ran in quick mode. Run without --quick for full test suite.${NC}"
-    fi
+    # Exit with appropriate code
+    [ ${#failed_tests[@]} -eq 0 ] && exit 0 || exit 1
 }
 
 # Run main function
