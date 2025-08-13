@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 2025-08-13
+
+### Fixed
+- **Documentation Accuracy** - Aligned cache threshold documentation with code implementation
+  - Updated README.md cache descriptions to match actual defaults (Conda: 1 week, Pip: 1 week)
+  - Fixed configuration examples to reflect correct threshold values
+  - Corrected performance impact claims to be realistic and evidence-based
+- **Code Comment Cleanup** - Removed stale comments and improved documentation consistency  
+  - Removed outdated "Fixed:" comment from output utilities
+  - Standardized code comment formatting for better maintainability
+- **Feature Documentation** - Eliminated redundant feature descriptions in README.md
+  - Consolidated duplicate caching feature descriptions into single clear statement
+  - Improved feature list clarity and reduced confusion
+
+### Changed
+- **Performance Claims** - Updated README.md performance section for accuracy
+  - Replaced overstated "75-85% time saved" claims with realistic caching behavior descriptions
+  - Focused documentation on actual benefits: comprehensive coverage, safety, and convenience
+  - Emphasized plugin's real value proposition rather than unsubstantiated speed claims
+
+### Technical Details
+- Documentation now accurately reflects cache thresholds: APT (1 hour), Conda (1 week), Flatpak (2 hours), Pip (1 week)
+- All user-facing documentation aligned with implementation for consistent user experience
+- Maintains full backward compatibility with all existing functionality
+
 ## [0.3.4] - 2025-08-12
 
 ### Added

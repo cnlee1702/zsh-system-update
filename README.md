@@ -7,7 +7,6 @@ A smart, efficient system update plugin for oh-my-zsh that handles APT packages,
 - 🚀 **Smart Caching**: Skips unnecessary updates based on configurable time thresholds
 - 📦 **Multi-Package Manager Support**: Updates APT, Conda, pip, and Flatpak applications
 - 🐍 **Multi-Environment Support**: Updates pip across all conda environments automatically  
-- ⚡ **Performance Optimized**: 60-80% faster on repeated runs within cache windows
 - 🎛️ **Flexible Options**: Granular control over what gets updated
 - 🎨 **Beautiful Output**: Color-coded status messages and progress indicators
 - 🛡️ **Safe Defaults**: Handles configuration prompts and errors gracefully
@@ -53,17 +52,21 @@ zsh-system-update --dry-run
 The plugin uses intelligent time-based caching to avoid unnecessary work:
 
 - **APT updates**: Cached for 1 hour (repositories don't change frequently)
-- **Conda updates**: Cached for 2 hours (larger operations, less frequent updates)
-- **Flatpak updates**: Cached for 2 hours (similar to Conda, less frequent updates)
-- **Pip updates**: Always run (fast operations, checked per environment)
+- **Conda updates**: Cached for 1 week (larger operations, less frequent updates)
+- **Flatpak updates**: Cached for 2 hours (similar to APT, moderate frequency updates)
+- **Pip updates**: Cached for 1 week (checked per environment, less frequent updates)
 
-### Performance Impact
+### Caching Benefits
 
-| Scenario | Without Caching | With Caching | Time Saved |
-|----------|-----------------|--------------|------------|
-| First run | 3-4 minutes | 3-4 minutes | 0% |
-| Within cache window | 3-4 minutes | 30-60 seconds | **75-85%** |
-| Force updates | 3-4 minutes | 3-4 minutes | 0% |
+The plugin provides intelligent caching to avoid redundant operations:
+
+| Scenario | Behavior | Benefit |
+|----------|----------|---------|
+| First run | All managers execute normally | Full system coverage |
+| Within cache window | Cached managers skip operations | Reduced redundant work |
+| Force updates | All managers execute regardless of cache | Override when needed |
+
+**Primary advantages:** Comprehensive system coverage, safe configuration handling, unified interface for multiple package managers, and automatic multi-environment support rather than raw performance gains.
 
 ### Cache Management
 
@@ -184,8 +187,8 @@ Configure cache thresholds using environment variables in your `~/.zshrc`:
 # Cache thresholds (in seconds)
 export ZSU_CACHE_THRESHOLD_APT=3600      # APT: 1 hour (default)
 export ZSU_CACHE_THRESHOLD_CONDA=604800  # Conda: 1 week (default) 
-export ZSU_CACHE_THRESHOLD_FLATPAK=86400 # Flatpak: 24 hours (default)
-export ZSU_CACHE_THRESHOLD_PIP=86400     # Pip: 24 hours (default)
+export ZSU_CACHE_THRESHOLD_FLATPAK=7200  # Flatpak: 2 hours (default)
+export ZSU_CACHE_THRESHOLD_PIP=604800    # Pip: 1 week (default)
 
 # Example: More frequent APT updates
 export ZSU_CACHE_THRESHOLD_APT=1800      # Check every 30 minutes
@@ -321,11 +324,11 @@ MIT License - see LICENSE file for details.
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ### Latest Changes
+- **v0.3.5**: Documentation accuracy improvements - aligned cache thresholds, realistic performance claims, removed redundant features
 - **v0.3.4**: Cache management commands (`--clear-cache`, `--clear-all-cache`, `--list-cache`) with comprehensive test coverage
 - **v0.3.3**: Unified cache system with configurable thresholds and expanded test suite (51 total tests)
 - **v0.3.2**: Comprehensive test suite enhancement with 70 total tests
 - **v0.3.1**: Hook guard protection to prevent undesired execution contexts
-- **v0.3.0**: Modular architecture refactor, enhanced test suite, improved maintainability
 
 ## Related Projects
 

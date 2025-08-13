@@ -15,7 +15,7 @@ zsu_print_success() {
     print -P "%F{green}[SUCCESS]%f $1"
 }
 
-zsu_print_warning() {    # Fixed: was zsh_print_warning
+zsu_print_warning() {
     print -P "%F{yellow}[WARNING]%f $1"
 }
 
