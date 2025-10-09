@@ -152,6 +152,136 @@ test_cache_clear_integration() {
     cleanup_unit_test_env
 }
 
+# Test preference management functions
+test_preference_functions() {
+    print_test_header "Preference Management Tests"
+    
+    setup_unit_test_env
+    load_test_plugin
+    
+    # Load cache utilities module
+    if ! zsu_import "lib/utils/cache.zsh"; then
+        echo -e "${RED}✗${NC} Failed to load cache utilities module"
+        return 1
+    fi
+    
+    # Set up test environment with custom cache directory
+    export ZSU_CACHE_DIR="$UNIT_TEST_DIR/cache"
+    
+    # Initialize cache directory
+    zsu_cache_init
+    
+    # Test 1: Preference functions exist
+    assert_success "Preference set function exists" "declare -f zsu_preference_set >/dev/null"
+    assert_success "Preference get function exists" "declare -f zsu_preference_get >/dev/null"
+    assert_success "Preference exists function exists" "declare -f zsu_preference_exists >/dev/null"
+    
+    # Test 2: Setting and getting preferences
+    run_test "Setting and getting basic preference"
+    zsu_preference_set "test_key" "test_value" >/dev/null 2>&1
+    local retrieved_value=$(zsu_preference_get "test_key" "default")
+    if [[ "$retrieved_value" == "test_value" ]]; then
+        echo -e "${GREEN}✓ PASS${NC}: Setting and getting basic preference"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Expected 'test_value', got '$retrieved_value'"
+        ((TESTS_FAILED++))
+    fi
+    
+    # Test 3: Default value handling
+    run_test "Default value handling for non-existent preference"
+    local default_value=$(zsu_preference_get "nonexistent_key" "default_val")
+    if [[ "$default_value" == "default_val" ]]; then
+        echo -e "${GREEN}✓ PASS${NC}: Default value handling works"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Expected 'default_val', got '$default_value'"
+        ((TESTS_FAILED++))
+    fi
+    
+    # Test 4: Preference exists function
+    run_test "Preference exists function"
+    if zsu_preference_exists "test_key"; then
+        echo -e "${GREEN}✓ PASS${NC}: Preference exists function returns true for existing key"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Preference exists function returned false for existing key"
+        ((TESTS_FAILED++))
+    fi
+    
+    if ! zsu_preference_exists "nonexistent_key"; then
+        echo -e "${GREEN}✓ PASS${NC}: Preference exists function returns false for non-existent key"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Preference exists function returned true for non-existent key"
+        ((TESTS_FAILED++))
+    fi
+    
+    # Test 5: Updating existing preference
+    run_test "Updating existing preference"
+    zsu_preference_set "test_key" "updated_value" >/dev/null 2>&1
+    local updated_value=$(zsu_preference_get "test_key" "default")
+    if [[ "$updated_value" == "updated_value" ]]; then
+        echo -e "${GREEN}✓ PASS${NC}: Updating existing preference works"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Expected 'updated_value', got '$updated_value'"
+        ((TESTS_FAILED++))
+    fi
+    
+    # Test 6: Multiple preferences
+    run_test "Multiple preferences handling"
+    zsu_preference_set "key1" "value1" >/dev/null 2>&1
+    zsu_preference_set "key2" "value2" >/dev/null 2>&1
+    zsu_preference_set "key3" "value3" >/dev/null 2>&1
+    
+    local val1=$(zsu_preference_get "key1" "default")
+    local val2=$(zsu_preference_get "key2" "default")
+    local val3=$(zsu_preference_get "key3" "default")
+    
+    if [[ "$val1" == "value1" && "$val2" == "value2" && "$val3" == "value3" ]]; then
+        echo -e "${GREEN}✓ PASS${NC}: Multiple preferences handling works"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Multiple preferences failed - got '$val1', '$val2', '$val3'"
+        ((TESTS_FAILED++))
+    fi
+    
+    # Test 7: Preference file format
+    run_test "Preference file format is correct"
+    local pref_file="$ZSU_CACHE_DIR/preferences"
+    if [[ -f "$pref_file" ]]; then
+        local line_count=$(grep -c "=" "$pref_file" 2>/dev/null || echo 0)
+        if [[ $line_count -ge 3 ]]; then
+            echo -e "${GREEN}✓ PASS${NC}: Preference file format is correct"
+            ((TESTS_PASSED++))
+        else
+            echo -e "${RED}✗ FAIL${NC}: Preference file format incorrect - expected at least 3 lines with '='"
+            ((TESTS_FAILED++))
+        fi
+    else
+        echo -e "${RED}✗ FAIL${NC}: Preference file was not created"
+        ((TESTS_FAILED++))
+    fi
+    
+    # Test 8: Preference persistence across function calls
+    run_test "Preference persistence across function calls"
+    # Clear variables to simulate new shell session
+    unset ZSU_CACHE_DIR
+    export ZSU_CACHE_DIR="$UNIT_TEST_DIR/cache"
+    
+    local persistent_value=$(zsu_preference_get "key1" "default")
+    if [[ "$persistent_value" == "value1" ]]; then
+        echo -e "${GREEN}✓ PASS${NC}: Preference persistence works"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Expected 'value1', got '$persistent_value'"
+        ((TESTS_FAILED++))
+    fi
+    
+    cleanup_unit_test_env
+}
+
 # Run all tests
 main() {
     echo -e "${BLUE}Starting Cache Utilities Tests${NC}\n"
@@ -164,6 +294,11 @@ main() {
     
     if ! test_cache_clear_integration; then
         echo -e "${RED}✗ Cache clear integration tests failed${NC}"
+        exit 1
+    fi
+    
+    if ! test_preference_functions; then
+        echo -e "${RED}✗ Preference functions tests failed${NC}"
         exit 1
     fi
     

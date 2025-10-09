@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-10-09
+
+### Added
+- **Mamba Integration** - Automatic detection and use of mamba for faster conda package updates
+  - Detects mamba installations in PATH and conda directories
+  - Interactive preference selection on first detection with caching
+  - `--force-conda` flag to override mamba and use conda exclusively
+  - Preference management system for persistent user choices
+  - Enhanced conda manager with smart command selection logic
+  - Comprehensive test coverage with 11 new preference management tests
+
+### Enhanced
+- **Cache System** - Extended with preference management capabilities
+  - Added `zsu_preference_set`, `zsu_preference_get`, `zsu_preference_exists` functions
+  - Persistent preference storage in `~/.cache/zsh-system-update/preferences`
+  - Comprehensive test coverage for preference functionality
+- **Command-line Interface** - New flag for conda/mamba control
+  - Added `--force-conda` option to force conda usage over mamba
+  - Updated help documentation and tab completion
+- **Testing Infrastructure** - Expanded test suite for reliability
+  - Total tests increased from 58 to 69 (19% increase)
+  - Added 7 mamba-specific tests in conda manager
+  - Added 11 preference management tests in cache utilities
+  - Maintained 100% test success rate
+
+### Technical Details
+- Enhanced conda detection to also locate mamba installations
+- Implemented user preference caching system for mamba vs conda choice
+- Updated conda manager function signature to accept force-conda parameter
+- Added mamba command detection and version reporting in verbose mode
+- Maintained full backward compatibility with existing functionality
+
 ## [0.3.6] - 2025-10-09
 
 ### Fixed

@@ -210,3 +210,63 @@ zsu_cache_list() {
         fi
     done
 }
+
+# Preference management functions
+# Set preference value
+# Usage: zsu_preference_set <key> <value>
+zsu_preference_set() {
+    local key="$1"
+    local value="$2"
+    
+    zsu_cache_init
+    
+    local pref_file="${ZSU_CACHE_DIR}/preferences"
+    
+    # Create or update preference file
+    if [[ -f "$pref_file" ]]; then
+        # Remove existing key if present, then add new value
+        grep -v "^${key}=" "$pref_file" > "${pref_file}.tmp" 2>/dev/null || touch "${pref_file}.tmp"
+        echo "${key}=${value}" >> "${pref_file}.tmp"
+        mv "${pref_file}.tmp" "$pref_file"
+    else
+        echo "${key}=${value}" > "$pref_file"
+    fi
+}
+
+# Get preference value
+# Usage: zsu_preference_get <key> [default_value]
+zsu_preference_get() {
+    local key="$1"
+    local default="${2:-}"
+    
+    zsu_cache_init
+    
+    local pref_file="${ZSU_CACHE_DIR}/preferences"
+    
+    if [[ -f "$pref_file" ]]; then
+        local value=$(grep "^${key}=" "$pref_file" 2>/dev/null | cut -d'=' -f2-)
+        if [[ -n "$value" ]]; then
+            echo "$value"
+            return 0
+        fi
+    fi
+    
+    echo "$default"
+    return 1
+}
+
+# Check if preference exists
+# Usage: zsu_preference_exists <key>
+zsu_preference_exists() {
+    local key="$1"
+    
+    zsu_cache_init
+    
+    local pref_file="${ZSU_CACHE_DIR}/preferences"
+    
+    if [[ -f "$pref_file" ]]; then
+        grep -q "^${key}=" "$pref_file" 2>/dev/null
+    else
+        return 1
+    fi
+}
