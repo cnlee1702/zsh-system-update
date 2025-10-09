@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6] - 2025-10-09
+
+### Fixed
+- **Conda Environment Handling** - Fixed glob pattern error when conda environments directory is empty
+  - Resolved "no matches found" error in pip-manager.zsh when `/home/user/miniforge3/envs/*` contains no environments
+  - Added `null_glob` option to handle empty directory patterns gracefully
+  - Ensures pip updates continue working even with fresh conda installations
+
 ## [0.3.5] - 2025-08-13
 
 ### Fixed
