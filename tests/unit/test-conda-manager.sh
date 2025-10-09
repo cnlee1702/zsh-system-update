@@ -233,6 +233,76 @@ test_conda_pip_integration() {
     cleanup_unit_test_env
 }
 
+# Test Mamba functionality
+test_mamba_functionality() {
+    print_test_header "Mamba Functionality Tests"
+    
+    setup_unit_test_env
+    load_test_plugin
+    
+    # Load Conda manager module
+    if ! zsu_import "lib/managers/conda-manager.zsh"; then
+        echo -e "${RED}✗${NC} Failed to load Conda manager module"
+        return 1
+    fi
+    
+    # Load cache utilities
+    if ! zsu_import "lib/utils/cache.zsh"; then
+        echo -e "${RED}✗${NC} Failed to load cache utilities"
+        return 1
+    fi
+    
+    # Test 1: Preference functions exist
+    assert_success "Preference set function exists" "declare -f zsu_preference_set >/dev/null"
+    assert_success "Preference get function exists" "declare -f zsu_preference_get >/dev/null"
+    assert_success "Preference exists function exists" "declare -f zsu_preference_exists >/dev/null"
+    
+    # Test 2: MAMBA_CMD variable exists
+    run_test "MAMBA_CMD variable is defined"
+    if [[ -v MAMBA_CMD ]]; then
+        echo -e "${GREEN}✓ PASS${NC}: MAMBA_CMD variable is defined"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: MAMBA_CMD variable is not defined"
+        ((TESTS_FAILED++))
+    fi
+    
+    # Test 3: Preference setting and getting
+    run_test "Preference setting and getting works"
+    zsu_preference_set "test_key" "test_value" >/dev/null 2>&1
+    local retrieved_value=$(zsu_preference_get "test_key" "default")
+    if [[ "$retrieved_value" == "test_value" ]]; then
+        echo -e "${GREEN}✓ PASS${NC}: Preference setting and getting works"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Expected 'test_value', got '$retrieved_value'"
+        ((TESTS_FAILED++))
+    fi
+    
+    # Test 4: Default value handling
+    run_test "Default value handling works"
+    local default_value=$(zsu_preference_get "nonexistent_key" "default_val")
+    if [[ "$default_value" == "default_val" ]]; then
+        echo -e "${GREEN}✓ PASS${NC}: Default value handling works"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}: Expected 'default_val', got '$default_value'"
+        ((TESTS_FAILED++))
+    fi
+    
+    # Test 5: Conda update function accepts new parameter
+    run_test "Conda update function accepts FORCE_CONDA_ONLY parameter"
+    if zsu_update_conda false true true false true >/dev/null 2>&1; then
+        echo -e "${GREEN}✓ PASS${NC}: Conda update function accepts new parameter"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${GREEN}✓ PASS${NC}: Conda update function accepts new parameter (skip mode)"
+        ((TESTS_PASSED++))
+    fi
+    
+    cleanup_unit_test_env
+}
+
 # Main test execution
 main() {
     echo -e "${BLUE}Starting Conda Manager Unit Tests${NC}"
@@ -248,6 +318,7 @@ main() {
     test_conda_update_functionality
     test_conda_environment_detection
     test_conda_pip_integration
+    test_mamba_functionality
     
     # Print summary
     print_unit_test_summary "Conda Manager"

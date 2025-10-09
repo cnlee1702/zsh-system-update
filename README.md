@@ -6,6 +6,7 @@ A smart, efficient system update plugin for oh-my-zsh that handles APT packages,
 
 - 🚀 **Smart Caching**: Skips unnecessary updates based on configurable time thresholds
 - 📦 **Multi-Package Manager Support**: Updates APT, Conda, pip, and Flatpak applications
+- ⚡ **Mamba Integration**: Automatically uses mamba for faster conda updates when available
 - 🐍 **Multi-Environment Support**: Updates pip across all conda environments automatically  
 - 🎛️ **Flexible Options**: Granular control over what gets updated
 - 🎨 **Beautiful Output**: Color-coded status messages and progress indicators
@@ -120,6 +121,9 @@ zsh-system-update --force-apt-update --force-conda-update
 # System packages only
 zsh-system-update --apt-only
 
+# Force conda usage (disable mamba)
+zsh-system-update --force-conda
+
 # Python environments only  
 zsh-system-update --conda-only
 
@@ -179,6 +183,25 @@ The plugin checks for required commands automatically:
 - Standard Unix utilities (`basename`, `wc`, `grep`, `stat`, `find`)
 
 ## Configuration
+
+### Mamba Integration
+
+The plugin automatically detects and uses mamba when available for faster conda package updates. Mamba provides significantly faster dependency resolution compared to conda.
+
+**First-time Detection:**
+- When mamba is detected, you'll be prompted to choose your preference
+- Your choice is cached for future runs
+- In quiet mode, mamba is used by default
+
+**Preference Management:**
+- Use `--force-conda` flag to force conda usage (ignores mamba)
+- Preferences are stored in `~/.cache/zsh-system-update/preferences`
+- Clear preferences by deleting the preferences file
+
+**Detection Order:**
+1. Check if mamba is in PATH
+2. Check if mamba exists alongside conda installation  
+3. Fall back to conda if mamba not found
 
 ### Cache Configuration
 Configure cache thresholds using environment variables in your `~/.zshrc`:
@@ -324,6 +347,7 @@ MIT License - see LICENSE file for details.
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ### Latest Changes
+- **v0.4.0**: Mamba integration for faster conda updates with smart detection and user preferences
 - **v0.3.6**: Fixed conda environment glob pattern error for empty environments directory
 - **v0.3.5**: Documentation accuracy improvements - aligned cache thresholds, realistic performance claims, removed redundant features
 - **v0.3.4**: Cache management commands (`--clear-cache`, `--clear-all-cache`, `--list-cache`) with comprehensive test coverage

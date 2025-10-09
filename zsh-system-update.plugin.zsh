@@ -54,6 +54,7 @@ zsh-system-update() {
     local FORCE_APT_UPDATE=false
     local FORCE_CONDA_UPDATE=false
     local FORCE_FLATPAK_UPDATE=false
+    local FORCE_CONDA_ONLY=false
     local CLEAR_CACHE=()
     local CLEAR_ALL_CACHE=false
     local LIST_CACHE=false
@@ -132,6 +133,7 @@ OPTIONS:
     --force-apt-update  Force apt update even if recently updated
     --force-conda-update Force conda update even if recently updated
     --force-flatpak-update Force flatpak update even if recently updated
+    --force-conda       Force use of conda instead of mamba (even if mamba available)
     --clear-cache       Clear cache for specific manager(s) (apt|conda|pip|flatpak)
     --clear-all-cache   Clear all package manager caches
     --list-cache        List all cache entries with timestamps
@@ -212,6 +214,10 @@ EOF
                     ;;
                 --force-flatpak-update)
                     FORCE_FLATPAK_UPDATE=true
+                    shift
+                    ;;
+                --force-conda)
+                    FORCE_CONDA_ONLY=true
                     shift
                     ;;
                 --clear-cache)
@@ -304,7 +310,7 @@ EOF
             zsu_cache_touch "flatpak"
         fi
         
-        if zsu_update_conda $VERBOSE $SKIP_CONDA $QUIET $FORCE_CONDA_UPDATE; then
+        if zsu_update_conda $VERBOSE $SKIP_CONDA $QUIET $FORCE_CONDA_UPDATE $FORCE_CONDA_ONLY; then
             zsu_cache_touch "conda"
         fi
         
@@ -357,6 +363,7 @@ _zsh_system_update() {
         '--force-apt-update[Force apt update even if recently updated]' \
         '--force-conda-update[Force conda update even if recently updated]' \
         '--force-flatpak-update[Force flatpak update even if recently updated]' \
+        '--force-conda[Force use of conda instead of mamba]' \
         '*--clear-cache[Clear cache for specific manager(s)]:manager:(apt conda pip flatpak)' \
         '--clear-all-cache[Clear all package manager caches]' \
         '--list-cache[List all cache entries with timestamps]'

@@ -29,12 +29,14 @@ _zsu_load_cache_utils
 
 # Conda detection variables
 CONDA_CMD=""
+MAMBA_CMD=""
 CONDA_BASE=""
 CONDA_ENVS_DIR=""
 
 # Dynamic conda detection function
 zsu_detect_conda_installation() {
     local conda_cmd=""
+    local mamba_cmd=""
     local conda_base=""
     local envs_dir=""
     
@@ -138,22 +140,54 @@ zsu_detect_conda_installation() {
         envs_dir="${conda_base}/envs"
     fi
     
+    # Detect mamba if conda was found
+    if [[ -n "${conda_cmd}" ]]; then
+        # Method 1: Check if mamba is in PATH
+        if command -v mamba >/dev/null 2>&1; then
+            local mamba_type=$(type -t mamba 2>/dev/null || echo "unknown")
+            
+            if [[ "${mamba_type}" == "file" ]]; then
+                mamba_cmd=$(command -v mamba)
+                if [[ "${VERBOSE}" == true ]]; then
+                    zsu_print_status "Found mamba executable: ${mamba_cmd}"
+                fi
+            fi
+        fi
+        
+        # Method 2: Check if mamba is in the same directory as conda
+        if [[ -z "${mamba_cmd}" && "${conda_cmd}" != "conda" ]]; then
+            local conda_dir=$(dirname "${conda_cmd}")
+            if [[ -x "${conda_dir}/mamba" ]]; then
+                mamba_cmd="${conda_dir}/mamba"
+                if [[ "${VERBOSE}" == true ]]; then
+                    zsu_print_status "Found mamba in conda directory: ${mamba_cmd}"
+                fi
+            fi
+        fi
+    fi
+    
     # Set global variables for use in other functions
     CONDA_CMD="${conda_cmd}"
+    MAMBA_CMD="${mamba_cmd}"
     CONDA_BASE="${conda_base}"
     CONDA_ENVS_DIR="${envs_dir}"
     
     if [[ -n "${conda_cmd}" ]]; then
         if [[ "${VERBOSE}" == true ]]; then
             zsu_print_status "Conda detection successful:"
-            zsu_print_status "  Command: ${CONDA_CMD}"
+            zsu_print_status "  Conda: ${CONDA_CMD}"
+            zsu_print_status "  Mamba: ${MAMBA_CMD:-not found}"
             zsu_print_status "  Base: ${CONDA_BASE}"
             zsu_print_status "  Envs: ${CONDA_ENVS_DIR}"
             
-            # Show version if we have a real executable
+            # Show versions if we have real executables
             if [[ "${CONDA_CMD}" != "conda" ]]; then
                 local conda_version=$(${CONDA_CMD} --version 2>/dev/null || echo "unknown")
-                zsu_print_status "  Version: ${conda_version}"
+                zsu_print_status "  Conda Version: ${conda_version}"
+            fi
+            if [[ -n "${MAMBA_CMD}" ]]; then
+                local mamba_version=$(${MAMBA_CMD} --version 2>/dev/null || echo "unknown")
+                zsu_print_status "  Mamba Version: ${mamba_version}"
             fi
         fi
         return 0
@@ -195,6 +229,7 @@ zsu_update_conda() {
     SKIP_CONDA=${2:-false}
     QUIET=${3:-false}
     FORCE_CONDA_UPDATE=${4:-false}
+    FORCE_CONDA_ONLY=${5:-false}
 
     if [[ "${SKIP_CONDA}" == true ]]; then
         zsu_print_status "Skipping Conda updates"
@@ -215,22 +250,80 @@ zsu_update_conda() {
         zsu_print_status "Conda version: $(${CONDA_CMD} --version 2>/dev/null || echo 'unknown')"
     fi
     
+    # Determine which command to use for updates
+    local update_cmd="${CONDA_CMD}"
+    local prefer_mamba=false
+    
+    # Check user preference for mamba vs conda
+    if [[ "${FORCE_CONDA_ONLY}" == true ]]; then
+        # User explicitly wants conda only
+        if [[ "${VERBOSE}" == true ]]; then
+            zsu_print_status "Using conda (forced via --force-conda flag)"
+        fi
+        zsu_preference_set "conda_manager_prefer_mamba" "false"
+    elif [[ -n "${MAMBA_CMD}" ]]; then
+        # Mamba is available, check preferences
+        local cached_preference=$(zsu_preference_get "conda_manager_prefer_mamba" "")
+        
+        if [[ -z "${cached_preference}" ]]; then
+            # No preference set, prompt user and cache choice
+            if [[ "${QUIET}" != true ]]; then
+                zsu_print_status "Mamba detected! Mamba provides faster dependency resolution."
+                printf "Use mamba for conda package updates? [Y/n]: "
+                read -r user_choice
+                case "${user_choice}" in
+                    [Nn]|[Nn][Oo])
+                        prefer_mamba=false
+                        zsu_preference_set "conda_manager_prefer_mamba" "false"
+                        ;;
+                    *)
+                        prefer_mamba=true
+                        zsu_preference_set "conda_manager_prefer_mamba" "true"
+                        ;;
+                esac
+            else
+                # In quiet mode, default to mamba
+                prefer_mamba=true
+                zsu_preference_set "conda_manager_prefer_mamba" "true"
+            fi
+        else
+            # Use cached preference
+            prefer_mamba=$([[ "${cached_preference}" == "true" ]])
+        fi
+        
+        if [[ "${prefer_mamba}" == true ]]; then
+            update_cmd="${MAMBA_CMD}"
+            if [[ "${VERBOSE}" == true ]]; then
+                zsu_print_status "Using mamba for faster updates"
+            fi
+        else
+            if [[ "${VERBOSE}" == true ]]; then
+                zsu_print_status "Using conda (user preference)"
+            fi
+        fi
+    else
+        # No mamba available
+        if [[ "${VERBOSE}" == true ]]; then
+            zsu_print_status "Using conda (mamba not available)"
+        fi
+    fi
+    
     # Only update conda if needed (unless forced)
     if [[ "${FORCE_CONDA_UPDATE}" == true ]] || zsu_conda_update_needed "${VERBOSE}"; then
-        # Check if mamba is available in the same environment
-        local mamba_available=false
-        local conda_dir=$(dirname "${CONDA_CMD}")
-        if [[ -x "${conda_dir}/mamba" ]]; then
-            mamba_available=true
-        fi
-        
-        if [[ "${mamba_available}" == true ]]; then
-            run_cmd "${CONDA_CMD} update conda mamba --yes" "Updating conda and mamba"
+        # Update conda/mamba based on what's available and preferred
+        if [[ -n "${MAMBA_CMD}" && "${update_cmd}" == "${MAMBA_CMD}" ]]; then
+            # Using mamba - update both conda and mamba
+            run_cmd "${update_cmd} update conda mamba --yes" "Updating conda and mamba with mamba"
+        elif [[ -n "${MAMBA_CMD}" ]]; then
+            # Using conda but mamba is available - update both
+            run_cmd "${update_cmd} update conda mamba --yes" "Updating conda and mamba with conda"
         else
-            run_cmd "${CONDA_CMD} update conda --yes" "Updating conda"
+            # Only conda available
+            run_cmd "${update_cmd} update conda --yes" "Updating conda"
         fi
         
-        run_cmd "${CONDA_CMD} clean --all --yes" "Cleaning conda cache"
+        # Use the same command for cleaning
+        run_cmd "${update_cmd} clean --all --yes" "Cleaning conda cache"
     else
         zsu_print_status "Conda is recently updated, skipping conda update"
     fi
@@ -242,5 +335,6 @@ zsu_update_conda() {
 }
 
 export CONDA_CMD
+export MAMBA_CMD
 export CONDA_BASE
 export CONDA_ENVS_DIR
