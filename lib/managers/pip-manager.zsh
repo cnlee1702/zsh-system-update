@@ -71,6 +71,8 @@ zsu_update_pip() {
     local env_count=0
     
     if [[ -n "${CONDA_ENVS_DIR}" && -d "${CONDA_ENVS_DIR}" ]]; then
+        # Use nullglob-like behavior to handle empty directories
+        setopt local_options null_glob
         for env_path in "${CONDA_ENVS_DIR}"/*; do
             local env_name=$(basename "${env_path}")
             

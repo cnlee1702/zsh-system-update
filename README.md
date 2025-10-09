@@ -324,6 +324,7 @@ MIT License - see LICENSE file for details.
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ### Latest Changes
+- **v0.3.6**: Fixed conda environment glob pattern error for empty environments directory
 - **v0.3.5**: Documentation accuracy improvements - aligned cache thresholds, realistic performance claims, removed redundant features
 - **v0.3.4**: Cache management commands (`--clear-cache`, `--clear-all-cache`, `--list-cache`) with comprehensive test coverage
 - **v0.3.3**: Unified cache system with configurable thresholds and expanded test suite (51 total tests)
