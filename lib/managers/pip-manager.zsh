@@ -38,7 +38,15 @@ zsu_update_pip() {
         zsu_print_status "Skipping pip updates"
         return 0
     fi
-    
+
+    # Security: Verify no sudo credentials are cached
+    # Pip operations should never require elevated privileges
+    if sudo -n true 2>/dev/null; then
+        zsu_print_warning "Detected cached sudo credentials before pip operations"
+        zsu_print_warning "Invalidating credentials for security (pip doesn't need sudo)"
+        sudo -K 2>/dev/null
+    fi
+
     zsu_print_status "Starting pip updates..."
 
     # Update pip in base environment

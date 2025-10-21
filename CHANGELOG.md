@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2025-10-21
+
+### Added
+- **Privilege Isolation and Security Hardening** - Comprehensive privilege deescalation implementation
+  - APT operations now isolated in subshell with automatic credential cleanup
+  - Trap handlers ensure `sudo -K` executes even on error or interruption
+  - Conda/pip/flatpak managers actively detect and clear cached sudo credentials
+  - Defense-in-depth approach prevents privilege escalation vulnerabilities
+  - New Security section in README documenting privilege isolation architecture
+
+### Enhanced
+- **APT Manager Security** - Sandboxed privilege escalation
+  - All sudo operations wrapped in subshell with credential lifetime control
+  - Automatic credential invalidation (`sudo -K`) immediately after operations
+  - Exit/interrupt/termination handlers ensure cleanup in all scenarios
+  - Success message indicates credential cleanup status
+- **Non-Privileged Manager Guards** - Active credential detection in conda/pip/flatpak
+  - Pre-operation checks for cached sudo credentials (`sudo -n true`)
+  - Automatic credential clearing if detected before operations begin
+  - Warning messages inform users of security-related credential invalidation
+  - Ensures operations always run with minimum required privileges
+
+### Security Benefits
+- Sudo credential cache limited exclusively to APT operations
+- Zero credential leakage to non-privileged package managers
+- Minimized credential lifetime reduces attack surface
+- Each package manager runs with principle of least privilege
+- Protection against potential vulnerabilities in conda/pip/flatpak code
+
+### Technical Details
+- APT operations execute in isolated subshell context (lib/managers/apt-manager.zsh)
+- Trap-based cleanup ensures credentials cleared in all exit scenarios
+- Active guards in conda-manager.zsh, pip-manager.zsh, and flatpak-manager.zsh
+- All existing tests pass (69/69) confirming backward compatibility
+- No functional changes to user-facing behavior or command-line interface
+
 ## [0.4.0] - 2025-10-09
 
 ### Added

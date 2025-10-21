@@ -55,43 +55,60 @@ zsu_update_apt() {
         zsu_print_status "Skipping APT updates"
         return 0
     fi
-    
+
     # Check if apt is available (for non-Debian systems)
     if ! command -v apt-get >/dev/null 2>&1; then
         zsu_print_warning "APT not found, skipping APT updates"
         return 0
     fi
-    
+
     zsu_print_status "Starting APT updates..."
-    
+
     local apt_quiet=""
     local apt_config=""
-    
+
     if [[ "$QUIET" == true ]]; then
         apt_quiet="-qq"
     fi
-    
+
     # Auto-handle configuration prompts
     apt_config='-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"'
-    
-    # Only update package lists if needed (unless forced)
-    if [[ "$FORCE_APT_UPDATE" == true ]] || zsu_apt_update_needed $VERBOSE; then
-        run_cmd "sudo apt-get update $apt_quiet" "Updating package lists"
+
+    # Sandbox APT operations in a subshell with credential cleanup
+    # This ensures sudo credentials don't persist beyond APT operations
+    (
+        # Trap to ensure credentials are invalidated even on error
+        trap 'sudo -K 2>/dev/null' EXIT INT TERM
+
+        # Only update package lists if needed (unless forced)
+        if [[ "$FORCE_APT_UPDATE" == true ]] || zsu_apt_update_needed $VERBOSE; then
+            run_cmd "sudo apt-get update $apt_quiet" "Updating package lists"
+        else
+            zsu_print_status "Package lists are recent, skipping update"
+        fi
+
+        # Check if upgrades are available using apt-get (more script-friendly)
+        if apt list --upgradable 2>/dev/null | grep -q "upgradable" 2>/dev/null; then
+            run_cmd "sudo apt-get upgrade --yes --no-install-recommends $apt_config" "Upgrading packages"
+        else
+            zsu_print_status "No packages to upgrade"
+        fi
+
+        run_cmd "sudo apt-get autoremove --yes --purge" "Removing unnecessary packages"
+        run_cmd "sudo apt-get autoclean" "Cleaning package cache"
+
+        # Explicitly invalidate sudo credentials before exiting
+        sudo -K 2>/dev/null
+    )
+
+    local apt_exit_code=$?
+
+    if [[ $apt_exit_code -eq 0 ]]; then
+        zsu_print_success "APT updates completed (credentials cleared)"
     else
-        zsu_print_status "Package lists are recent, skipping update"
+        zsu_print_error "APT updates failed with exit code $apt_exit_code"
+        return $apt_exit_code
     fi
-    
-    # Check if upgrades are available using apt-get (more script-friendly)
-    if apt list --upgradable 2>/dev/null | grep -q "upgradable" 2>/dev/null; then
-        run_cmd "sudo apt-get upgrade --yes --no-install-recommends $apt_config" "Upgrading packages"
-    else
-        zsu_print_status "No packages to upgrade"
-    fi
-    
-    run_cmd "sudo apt-get autoremove --yes --purge" "Removing unnecessary packages"
-    run_cmd "sudo apt-get autoclean" "Cleaning package cache"
-    
-    zsu_print_success "APT updates completed"
 
     return 0
 

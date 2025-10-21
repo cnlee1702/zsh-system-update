@@ -235,7 +235,15 @@ zsu_update_conda() {
         zsu_print_status "Skipping Conda updates"
         return 0
     fi
-    
+
+    # Security: Verify no sudo credentials are cached
+    # Conda operations should never require elevated privileges
+    if sudo -n true 2>/dev/null; then
+        zsu_print_warning "Detected cached sudo credentials before conda operations"
+        zsu_print_warning "Invalidating credentials for security (conda doesn't need sudo)"
+        sudo -K 2>/dev/null
+    fi
+
     # Use dynamic conda detection
     if [[ -z "${CONDA_CMD}" ]]; then
         zsu_print_warning "Conda not found, skipping conda updates"
