@@ -7,7 +7,8 @@ A smart, efficient system update plugin for oh-my-zsh that handles APT packages,
 - 🚀 **Smart Caching**: Skips unnecessary updates based on configurable time thresholds
 - 📦 **Multi-Package Manager Support**: Updates APT, Conda, pip, and Flatpak applications
 - ⚡ **Mamba Integration**: Automatically uses mamba for faster conda updates when available
-- 🐍 **Multi-Environment Support**: Updates pip across all conda environments automatically  
+- 🐍 **Multi-Environment Support**: Updates pip across all conda environments automatically
+- 🔒 **Privilege Isolation**: APT operations sandboxed with automatic credential cleanup, active guards prevent privilege escalation
 - 🎛️ **Flexible Options**: Granular control over what gets updated
 - 🎨 **Beautiful Output**: Color-coded status messages and progress indicators
 - 🛡️ **Safe Defaults**: Handles configuration prompts and errors gracefully
@@ -167,12 +168,36 @@ zsh-system-update --clear-all-cache               # Clear all caches
 - Removes unused runtimes and dependencies
 - Cleans Flatpak cache
 
+## Security
+
+### Privilege Isolation
+
+The plugin implements strict privilege isolation between package managers to minimize security risks:
+
+**APT Operations (Privileged):**
+- All `sudo` operations are isolated in a subshell
+- Credentials are automatically cleared (`sudo -K`) immediately after APT completes
+- Trap handlers ensure cleanup even on error or interruption
+- Prevents credential leakage to subsequent operations
+
+**Conda/Pip/Flatpak Operations (Unprivileged):**
+- These managers never require elevated privileges
+- Active guards detect and clear any cached `sudo` credentials before operations
+- Ensures these operations run with user-level permissions only
+- Prevents potential privilege escalation vulnerabilities
+
+**Benefits:**
+- Each package manager runs with minimum required privileges
+- `sudo` credential cache is limited to APT operations only
+- Credential lifetime is explicitly controlled and minimized
+- Defense-in-depth against privilege escalation attacks
+
 ## Requirements
 
 ### System Requirements
 - Linux (tested on Linux Mint/Ubuntu)
 - zsh shell with oh-my-zsh
-- sudo access for system package updates
+- sudo access for system package updates (APT only)
 
 ### Dependencies
 The plugin checks for required commands automatically:
@@ -347,13 +372,12 @@ MIT License - see LICENSE file for details.
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ### Latest Changes
+- **v0.5.0**: Privilege isolation and security hardening - APT operations sandboxed with automatic credential cleanup, active guards in conda/pip/flatpak prevent privilege escalation
 - **v0.4.0**: Mamba integration for faster conda updates with smart detection and user preferences
 - **v0.3.6**: Fixed conda environment glob pattern error for empty environments directory
 - **v0.3.5**: Documentation accuracy improvements - aligned cache thresholds, realistic performance claims, removed redundant features
 - **v0.3.4**: Cache management commands (`--clear-cache`, `--clear-all-cache`, `--list-cache`) with comprehensive test coverage
 - **v0.3.3**: Unified cache system with configurable thresholds and expanded test suite (51 total tests)
-- **v0.3.2**: Comprehensive test suite enhancement with 70 total tests
-- **v0.3.1**: Hook guard protection to prevent undesired execution contexts
 
 ## Related Projects
 

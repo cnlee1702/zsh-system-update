@@ -40,7 +40,15 @@ zsu_update_flatpak() {
         zsu_print_status "Skipping Flatpak updates"
         return 0
     fi
-    
+
+    # Security: Verify no sudo credentials are cached
+    # Flatpak operations should never require elevated privileges
+    if sudo -n true 2>/dev/null; then
+        zsu_print_warning "Detected cached sudo credentials before flatpak operations"
+        zsu_print_warning "Invalidating credentials for security (flatpak doesn't need sudo)"
+        sudo -K 2>/dev/null
+    fi
+
     # Check if flatpak is installed
     if ! command -v flatpak >/dev/null 2>&1; then
         zsu_print_warning "Flatpak not found, skipping Flatpak updates"
