@@ -372,12 +372,12 @@ MIT License - see LICENSE file for details.
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ### Latest Changes
+- **v0.5.1**: Security hardening - improved input sanitization in pip manager for enhanced protection
 - **v0.5.0**: Privilege isolation and security hardening - APT operations sandboxed with automatic credential cleanup, active guards in conda/pip/flatpak prevent privilege escalation
 - **v0.4.0**: Mamba integration for faster conda updates with smart detection and user preferences
 - **v0.3.6**: Fixed conda environment glob pattern error for empty environments directory
 - **v0.3.5**: Documentation accuracy improvements - aligned cache thresholds, realistic performance claims, removed redundant features
 - **v0.3.4**: Cache management commands (`--clear-cache`, `--clear-all-cache`, `--list-cache`) with comprehensive test coverage
-- **v0.3.3**: Unified cache system with configurable thresholds and expanded test suite (51 total tests)
 
 ## Related Projects
 
