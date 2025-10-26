@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2025-10-25
+
+### Fixed
+- **GitHub Actions Security** - Added explicit permissions to workflow jobs
+  - Implemented read-only contents permissions across all CI/CD jobs
+  - Follows principle of least privilege for GitHub Actions tokens
+  - Resolves CodeQL code scanning alerts for missing workflow permissions
+
+### Security
+- Limits GITHUB_TOKEN permissions to minimum required access
+- Prevents potential unauthorized repository modifications via workflows
+- Aligns with GitHub Actions security best practices
+- No impact on workflow functionality or test execution
+
 ## [0.5.1] - 2025-10-25
 
 ### Fixed
