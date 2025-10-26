@@ -94,10 +94,10 @@ zsu_update_pip() {
                     fi
 
                     if [[ "${DRY_RUN}" == true ]]; then
-                        echo "DRY RUN: ${CONDA_CMD} run -n ${env_name} python -m pip install --upgrade pip"
+                        echo "DRY RUN: ${CONDA_CMD} run -n \"${env_name}\" python -m pip install --upgrade pip"
                     else
                         # Use the detected conda command
-                        pip_cmd="${CONDA_CMD} run -n ${env_name} python -m pip install --upgrade pip"
+                        pip_cmd="${CONDA_CMD} run -n \"${env_name}\" python -m pip install --upgrade pip"
 
                         if [[ "${VERBOSE}" == true ]]; then
                             zsu_print_status "Updating pip in environment: ${env_name}"

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2025-10-25
+
+### Fixed
+- **Security Hardening** - Improved input sanitization in pip manager
+  - Enhanced protection against special characters in environment names
+  - Defense-in-depth security improvement for conda environment handling
+  - No functional changes to user-facing behavior
+
+### Security
+- Addresses potential command injection vector identified in security audit
+- Strengthens input validation for environment-based operations
+- All existing tests pass confirming backward compatibility
+
 ## [0.5.0] - 2025-10-21
 
 ### Added
