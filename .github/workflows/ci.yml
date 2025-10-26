@@ -13,12 +13,14 @@ jobs:
   test:
     name: Test Suite
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+
     strategy:
       matrix:
         # Test on multiple Ubuntu versions
         os: [ubuntu-20.04, ubuntu-22.04, ubuntu-latest]
-        
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -72,7 +74,9 @@ jobs:
   lint:
     name: Shell Linting
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -113,7 +117,9 @@ jobs:
   security:
     name: Security Scan
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -143,7 +149,9 @@ jobs:
   documentation:
     name: Documentation Check
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -192,7 +200,9 @@ jobs:
   integration:
     name: Integration Tests
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -225,7 +235,9 @@ jobs:
   comprehensive-tests:
     name: Comprehensive Test Coverage
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -287,11 +299,13 @@ jobs:
   compatibility:
     name: Compatibility Test
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+
     strategy:
       matrix:
         zsh-version: ["5.8", "5.9"]
-        
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
